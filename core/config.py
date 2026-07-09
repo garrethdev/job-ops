@@ -42,12 +42,27 @@ PROFILES_DIR = ROOT / "profiles"
 # Fit-score threshold at/above which a record is worth enriching + surfacing.
 DEFAULT_FIT_THRESHOLD = int(os.environ.get("JOBOPS_FIT_THRESHOLD", "6"))
 
-# Valid enum values, single source of truth (schema.py imports these).
-LANES = ("architecture", "video-ai")
+# Target role categories (the `lane` field). Single source of truth: schema
+# validation, scoring, digest grouping, and profile filenames all key off this.
+# Each value maps to profiles/<lane>.md.
+LANES = ("gtm-engineer", "software-architect", "ai-consultant", "ai-video-editor")
 SOURCES = ("email", "board", "marketplace")
 STATUSES = ("new", "enriched", "queued_for_apply", "applied", "rejected")
 
+# Only remote or hybrid roles are wanted. Scoring boosts remote/hybrid and treats
+# on-site-only / relocation-required as deal-breakers (see the profiles).
+LOCATION_POLICY = "remote-or-hybrid"
+
+# LLM scoring provider (used with --llm). OpenRouter/DeepSeek preferred if set.
+OPENROUTER_MODEL = os.environ.get("OPENROUTER_MODEL", "deepseek/deepseek-chat-v3-0324")
+OPENROUTER_URL = "https://openrouter.ai/api/v1/chat/completions"
+
 
 def anthropic_key() -> str | None:
-    """Return the Anthropic API key if present, else None (heuristic fallback)."""
+    """Return the Anthropic API key if present, else None."""
     return os.environ.get("ANTHROPIC_API_KEY") or None
+
+
+def openrouter_key() -> str | None:
+    """Return the OpenRouter API key if present, else None."""
+    return os.environ.get("OPENROUTER_API_KEY") or None

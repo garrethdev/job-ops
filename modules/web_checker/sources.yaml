@@ -16,13 +16,15 @@ sources:
     limit: 60
     keywords:
       - engineer
-      - developer
       - architect
-      - backend
-      - platform
+      - solutions
+      - gtm
+      - growth
+      - consultant
       - ai
       - video
-      - ml
+      - editor
+      - platform
 
   - name: weworkremotely-programming
     adapter: weworkremotely
@@ -34,12 +36,15 @@ sources:
       - "https://weworkremotely.com/categories/remote-devops-sysadmin-jobs.rss"
     keywords:
       - engineer
-      - developer
       - architect
-      - backend
-      - platform
+      - solutions
+      - gtm
+      - growth
+      - consultant
       - ai
       - video
+      - editor
+      - platform
 
   - name: hn-whoishiring
     adapter: hn_whoishiring
@@ -49,12 +54,14 @@ sources:
     keywords:
       - remote
       - engineer
-      - backend
-      - platform
       - architect
+      - solutions
+      - gtm
+      - growth
+      - consultant
       - ai
       - video
-      - ml
+      - editor
 
 # JS-rendered sources (LinkedIn/Upwork/etc.) route through Firecrawl or email
 # alerts (Module A), not naive scraping — see GAMEPLAN §3. Left unconfigured here.

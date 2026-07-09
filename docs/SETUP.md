@@ -22,7 +22,8 @@ each workflow references).
 
 | Secret | Used by | Required? | Notes |
 |--------|---------|-----------|-------|
-| `ANTHROPIC_API_KEY` | web-check, email-scan | Optional (recommended) | Enables LLM classification. **Without it, web-check still runs** on the free deterministic heuristic scorer. Billed when set + `--llm`. |
+| `OPENROUTER_API_KEY` | web-check | Optional (recommended) | Enables LLM classification via **DeepSeek-V3** (`OPENROUTER_MODEL`, default `deepseek/deepseek-chat-v3-0324`). ~$0.03 per full ~144-job run. Preferred over Anthropic when both are set. |
+| `ANTHROPIC_API_KEY` | web-check, email-scan | Optional | Alternative LLM scorer (Claude) if no OpenRouter key. **Without any LLM key, web-check still runs** on the free deterministic heuristic. Billed when used with `--llm`. |
 | `FIRECRAWL_API_KEY` | web-check | Optional | Only for JS-rendered sources (none configured yet). |
 | `GMAIL_CLIENT_ID` / `GMAIL_CLIENT_SECRET` / `GMAIL_REFRESH_TOKEN` | email-scan (M3) | **Blocks M3** | OAuth for the **gmail.com** account (garreth.dottin@gmail.com / garrethdottin@gmail.com), **NOT** cryptomiami.net — that's where the job alerts land. See §3. |
 | `APOLLO_API_KEY` | enrich (M4) | **Blocks M4** | Verify plan/credit tier; per-run cap is `JOBOPS_APOLLO_MAX_LOOKUPS` (default 25). |

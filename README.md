@@ -1,7 +1,8 @@
 # job-ops
 
-Scheduled jobs (GitHub Actions cron) that surface opportunities across two lanes —
-**software architecture** and **video AI editing** — score them, enrich them with
+Scheduled jobs (GitHub Actions cron) that surface **remote or hybrid** opportunities
+across four target roles — **GTM Engineer**, **Software Architect**, **AI Consultant**,
+**AI Video Editor** (and close variations) — score them, enrich them with
 decision-maker contacts, and feed an apply pipeline. State is committed back to the
 repo as versioned JSONL; no external infra.
 
@@ -18,7 +19,7 @@ by removing its workflow — nothing else breaks. A CI check
 
 ```
 core/                 store I/O, schema+dedupe, profile loader, scoring, digest  (the only shared code)
-profiles/             architecture.md, video-ai.md                               (lane profiles)
+profiles/             gtm-engineer.md, software-architect.md, ai-consultant.md, ai-video-editor.md
 modules/
   web_checker/        Module B — API/RSS sources -> score -> dedupe -> store -> digest   [M2 ✅]
   email_scanner/      Module A — Gmail allowlist -> classify/route -> store             [M3 ⛔ Gmail OAuth]
@@ -31,9 +32,13 @@ vendor/ai-job-search/       pinned @ reviewed SHA, reference only, NEVER execute
 
 ## Data flow
 
-`fetch (adapters) → classify + fit-score (heuristic, or Claude when a key is set)
-→ dedupe/merge (company+title OR url) → append to store (atomic, schema-validated)
-→ digest of genuinely-new opportunities → GitHub issue`
+`fetch (adapters) → classify into one of 4 roles + fit-score (free heuristic, or an
+LLM when a key is set: DeepSeek-V3 via OpenRouter, else Claude) → dedupe/merge
+(company+title OR url) → append to store (atomic, schema-validated) → digest of
+genuinely-new opportunities → GitHub issue`
+
+Scoring enforces **remote or hybrid only**: on-site-only / relocation-required
+postings are capped low and red-flagged.
 
 ## Status
 

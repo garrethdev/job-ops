@@ -22,10 +22,17 @@ import re
 import urllib.request
 from typing import Any, Dict, List
 
-from core.config import LANES, anthropic_key
+from core.config import (
+    LANES,
+    OPENROUTER_MODEL,
+    OPENROUTER_URL,
+    anthropic_key,
+    openrouter_key,
+)
 from core.profile import load_keywords
 
 ANTHROPIC_MODEL = "claude-sonnet-5"
+ANTHROPIC_URL = "https://api.anthropic.com/v1/messages"
 
 # Cache compiled word-boundary patterns so scoring stays cheap across a batch.
 _PAT_CACHE: Dict[str, "re.Pattern[str]"] = {}
@@ -91,13 +98,20 @@ def score_heuristic(record: Dict[str, Any]) -> Dict[str, Any]:
     }
 
 
-_LLM_PROMPT = """You are triaging a job/contract opportunity for a candidate who works in two lanes:
-- "architecture": senior/staff software architecture & backend/platform engineering
-- "video-ai": AI video editing / generative-media tooling / creative-technology engineering
+_LLM_PROMPT = """You triage a job/contract opportunity for a candidate targeting FOUR role types.
+The candidate works REMOTE or HYBRID only.
+- "gtm-engineer": go-to-market / growth / forward-deployed / solutions / sales engineer; automates the revenue engine (CRM, integrations, sales/marketing automation)
+- "software-architect": software/solutions architect, staff/principal engineer, system design, distributed systems, cloud/platform architecture
+- "ai-consultant": AI / GenAI / LLM consultant, advisor, strategist, or implementation/transformation lead
+- "ai-video-editor": AI video editor, generative video, AI-assisted editing / captioning / render pipelines
 
-Given the posting below, respond with ONLY a JSON object:
-{{"lane": "architecture" | "video-ai", "fit_score": <int 1-10>, "fit_rationale": "<one sentence>", "red_flags": ["..."]}}
-fit_score 1-3 = weak/neither, 4-6 = plausible, 7-10 = strong. Be strict.
+Respond with ONLY a JSON object:
+{{"lane": "gtm-engineer"|"software-architect"|"ai-consultant"|"ai-video-editor", "fit_score": <int 1-10>, "fit_rationale": "<one sentence>", "red_flags": ["..."]}}
+
+Rules:
+- Pick the single best-fitting role.
+- fit_score: 1-3 = weak/neither, 4-6 = plausible, 7-10 = strong. Be strict.
+- REMOTE or HYBRID only: if the posting is on-site-only or requires relocation, cap fit_score at 3 and add a red flag.
 
 POSTING:
 title: {title}
@@ -108,12 +122,56 @@ details: {snippet}
 """
 
 
+def _llm_backend():
+    """Choose LLM provider: OpenRouter (DeepSeek) first, then Anthropic, else none."""
+    ork = openrouter_key()
+    if ork:
+        return ("openrouter", ork, OPENROUTER_MODEL)
+    ak = anthropic_key()
+    if ak:
+        return ("anthropic", ak, ANTHROPIC_MODEL)
+    return (None, None, None)
+
+
+def _post_json(url: str, headers: Dict[str, str], payload: Dict[str, Any]) -> Dict[str, Any]:
+    req = urllib.request.Request(
+        url, data=json.dumps(payload).encode("utf-8"), headers=headers, method="POST"
+    )
+    with urllib.request.urlopen(req, timeout=60) as resp:
+        return json.loads(resp.read().decode("utf-8"))
+
+
+def _call_llm(prompt: str):
+    """Return (text, provider, model). (None, None, None) if no provider configured."""
+    provider, key, model = _llm_backend()
+    if provider == "openrouter":
+        data = _post_json(
+            OPENROUTER_URL,
+            {
+                "Authorization": f"Bearer {key}",
+                "content-type": "application/json",
+                "HTTP-Referer": "https://github.com/job-ops",
+                "X-Title": "job-ops",
+            },
+            {
+                "model": model,
+                "temperature": 0,
+                "max_tokens": 400,
+                "messages": [{"role": "user", "content": prompt}],
+            },
+        )
+        return data["choices"][0]["message"]["content"], provider, model
+    if provider == "anthropic":
+        data = _post_json(
+            ANTHROPIC_URL,
+            {"x-api-key": key, "anthropic-version": "2023-06-01", "content-type": "application/json"},
+            {"model": model, "max_tokens": 400, "messages": [{"role": "user", "content": prompt}]},
+        )
+        return "".join(b.get("text", "") for b in data.get("content", [])), provider, model
+    return None, None, None
+
+
 def score_llm(record: Dict[str, Any]) -> Dict[str, Any]:
-    key = anthropic_key()
-    if not key:
-        result = score_heuristic(record)
-        result["fit_rationale"] = "[no ANTHROPIC_API_KEY -> heuristic] " + result["fit_rationale"]
-        return result
     prompt = _LLM_PROMPT.format(
         title=record.get("title", ""),
         company=record.get("company", ""),
@@ -121,30 +179,17 @@ def score_llm(record: Dict[str, Any]) -> Dict[str, Any]:
         comp=record.get("comp", ""),
         snippet=(record.get("snippet", "") or "")[:2000],
     )
-    body = json.dumps({
-        "model": ANTHROPIC_MODEL,
-        "max_tokens": 400,
-        "messages": [{"role": "user", "content": prompt}],
-    }).encode("utf-8")
-    req = urllib.request.Request(
-        "https://api.anthropic.com/v1/messages",
-        data=body,
-        headers={
-            "x-api-key": key,
-            "anthropic-version": "2023-06-01",
-            "content-type": "application/json",
-        },
-        method="POST",
-    )
-    with urllib.request.urlopen(req, timeout=60) as resp:
-        payload = json.loads(resp.read().decode("utf-8"))
-    text = "".join(b.get("text", "") for b in payload.get("content", []))
+    text, provider, model = _call_llm(prompt)
+    if text is None:  # no key -> deterministic fallback, flagged in the rationale
+        result = score_heuristic(record)
+        result["fit_rationale"] = "[no LLM key -> heuristic] " + result["fit_rationale"]
+        return result
     parsed = json.loads(text[text.find("{"): text.rfind("}") + 1])
-    lane = parsed.get("lane") if parsed.get("lane") in LANES else "architecture"
+    lane = parsed.get("lane") if parsed.get("lane") in LANES else score_heuristic(record)["lane"]
     return {
         "lane": lane,
         "fit_score": int(parsed.get("fit_score", 0)),
-        "fit_rationale": str(parsed.get("fit_rationale", ""))[:400],
+        "fit_rationale": (f"[{model}] " + str(parsed.get("fit_rationale", "")))[:400],
         "red_flags": [str(x) for x in parsed.get("red_flags", [])][:6],
     }
 

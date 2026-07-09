@@ -32,7 +32,7 @@ def test_distinct_jobs_not_merged():
 def test_merge_preserves_progress_and_fills_gaps():
     existing = _rec("Acme", "Engineer", url="")
     existing["fit_score"] = 8
-    existing["lane"] = "architecture"
+    existing["lane"] = "software-architect"
     existing["status"] = "enriched"
     incoming = _rec("Acme", "Engineer", url="https://acme.com/1", source="email")
     incoming["last_seen"] = "2026-07-09T00:00:00Z"
