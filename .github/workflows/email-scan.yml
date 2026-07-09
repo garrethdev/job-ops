@@ -45,12 +45,31 @@ jobs:
           [ "$missing" = "0" ] || { echo "Module A is blocked on Gmail OAuth (docs/SETUP.md)"; exit 1; }
 
       - name: Run email-scanner
+        id: run
         env:
           GMAIL_CLIENT_ID: ${{ secrets.GMAIL_CLIENT_ID }}
           GMAIL_CLIENT_SECRET: ${{ secrets.GMAIL_CLIENT_SECRET }}
           GMAIL_REFRESH_TOKEN: ${{ secrets.GMAIL_REFRESH_TOKEN }}
+          # Email subjects are sparse -> LLM scoring is worth it (DeepSeek ~1c/run).
+          OPENROUTER_API_KEY: ${{ secrets.OPENROUTER_API_KEY }}
           ANTHROPIC_API_KEY: ${{ secrets.ANTHROPIC_API_KEY }}
-        run: python -m modules.email_scanner --digest-out digest.md
+        run: python -m modules.email_scanner --days 3 --llm --digest-out digest.md
+
+      - name: Commit updated store
+        run: |
+          git config user.name  "job-ops-bot"
+          git config user.email "job-ops-bot@users.noreply.github.com"
+          if ! git diff --quiet -- store/opportunities.jsonl; then
+            git add store/opportunities.jsonl
+            git commit -m "email-scan: update store ($(date -u +%Y-%m-%dT%H:%MZ))"
+            git push
+          fi
+
+      - name: Open digest issue (only when there are new opportunities)
+        if: steps.run.outputs.added != '0' && steps.run.outputs.added != ''
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: gh issue create --title "${{ steps.run.outputs.digest_title }}" --body-file digest.md --label "digest,email-scan" || gh issue create --title "${{ steps.run.outputs.digest_title }}" --body-file digest.md
 
       - name: Open failure issue
         if: failure()
