@@ -13,6 +13,38 @@ from core.config import apollo_key
 
 STATIC = Path(__file__).resolve().parent / "static"
 
+# Registry of every place roles are (or will be) found. Display metadata only —
+# live counts come from the store's `source_detail`. `key` matches source_detail.
+SOURCE_REGISTRY = [
+    # --- LIVE now: web-checker, public API/RSS, no auth ---
+    {"key": "remoteok", "name": "RemoteOK", "kind": "JSON API", "channel": "web-checker",
+     "status": "live", "note": "Remote tech roles; ToS-friendly public API"},
+    {"key": "weworkremotely-programming", "name": "WeWorkRemotely", "kind": "RSS", "channel": "web-checker",
+     "status": "live", "note": "Programming + DevOps/SysAdmin category feeds"},
+    {"key": "hn-whoishiring", "name": "HN “Who is hiring?”", "kind": "Algolia API", "channel": "web-checker",
+     "status": "live", "note": "Monthly thread; keyword pre-filtered to the 4 roles"},
+    # --- CONFIGURED but needs a key ---
+    {"key": "firecrawl", "name": "Firecrawl", "kind": "scrape (JS render)", "channel": "web-checker",
+     "status": "needs-key", "note": "For JS-rendered boards; needs FIRECRAWL_API_KEY (none wired yet)"},
+    # --- PLANNED via email (Module A, blocked on Gmail OAuth) ---
+    {"key": "linkedin-alerts", "name": "LinkedIn job alerts", "kind": "email", "channel": "email-scanner",
+     "status": "blocked", "note": "jobalerts-noreply@linkedin.com — needs Gmail OAuth"},
+    {"key": "linkedin-suggestions", "name": "LinkedIn suggestions/status", "kind": "email", "channel": "email-scanner",
+     "status": "blocked", "note": "jobs-noreply@linkedin.com — also application-status routing"},
+    {"key": "wellfound", "name": "Wellfound", "kind": "email", "channel": "email-scanner",
+     "status": "blocked", "note": "team@hi.wellfound.com — incl. AI/video roles"},
+    {"key": "indeed", "name": "Indeed", "kind": "email", "channel": "email-scanner",
+     "status": "blocked", "note": "donotreply@match.indeed.com"},
+    {"key": "glassdoor", "name": "Glassdoor", "kind": "email", "channel": "email-scanner",
+     "status": "blocked", "note": "noreply@glassdoor.com — lower signal, score filters"},
+    {"key": "direct-outreach", "name": "Recruiter/founder outreach", "kind": "email", "channel": "email-scanner",
+     "status": "blocked", "note": "Gmail 'Claude-Jobs' label + weekly keyword query"},
+    # --- MARKETPLACES: ~zero email volume; enable platform alerts -> email, or add adapters ---
+    {"key": "marketplaces", "name": "Upwork / Contra / Toptal / Braintrust", "kind": "platform alerts",
+     "channel": "email-scanner", "status": "planned",
+     "note": "Turn on each platform's email alerts (cheapest), or add web-checker adapters"},
+]
+
 _ID = r"([0-9a-f]{40})"
 RE_ENRICH = re.compile(rf"^/api/leads/{_ID}/enrich$")
 RE_NOTES = re.compile(rf"^/api/leads/{_ID}/notes$")
@@ -69,7 +101,26 @@ class Handler(BaseHTTPRequestHandler):
             leads = [_lead_view(r) for r in store_mod.load()]
             leads.sort(key=lambda x: x.get("fit_score", 0), reverse=True)
             return self._send(200, {"leads": leads, "apollo_ready": bool(apollo_key())})
+        if self.path == "/api/sources":
+            return self._send(200, self._sources())
         return self._send(404, {"error": "not found"})
+
+    def _sources(self) -> Dict[str, Any]:
+        # Live counts of what's actually in the store, keyed by source_detail.
+        counts: Dict[str, int] = {}
+        for r in store_mod.load():
+            k = r.get("source_detail") or "?"
+            counts[k] = counts.get(k, 0) + 1
+        rows = []
+        for s in SOURCE_REGISTRY:
+            rows.append({**s, "count": counts.get(s["key"], 0)})
+        # Any source_detail in the store not in the registry (future adapters).
+        known = {s["key"] for s in SOURCE_REGISTRY}
+        for k, n in counts.items():
+            if k not in known:
+                rows.append({"key": k, "name": k, "kind": "?", "channel": "?",
+                             "status": "live", "note": "(unregistered source in store)", "count": n})
+        return {"sources": rows, "total_leads": sum(counts.values())}
 
     def do_POST(self):
         m = RE_ENRICH.match(self.path)

@@ -57,6 +57,19 @@
   .notes textarea{width:240px;height:52px;background:var(--panel2);border:1px solid var(--line);
        color:var(--txt);border-radius:7px;padding:6px;font:12px/1.4 inherit;resize:vertical}
   .notes .disp{font-size:12px;color:var(--muted);max-width:220px;white-space:pre-wrap;cursor:text}
+  #sources{padding:14px 20px;border-bottom:1px solid var(--line);background:var(--panel2)}
+  .src-head{font-size:12px;text-transform:uppercase;letter-spacing:.05em;color:var(--muted);margin-bottom:10px}
+  #src-grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(300px,1fr));gap:8px}
+  .src{display:flex;gap:10px;align-items:flex-start;background:var(--panel);border:1px solid var(--line);
+       border-radius:9px;padding:9px 11px}
+  .dot{width:9px;height:9px;border-radius:50%;margin-top:5px;flex:none}
+  .d-live{background:var(--good)} .d-needs-key{background:var(--accent)}
+  .d-blocked{background:var(--bad)} .d-planned{background:var(--warn)}
+  .src .nm{font-weight:600;font-size:13px}
+  .src .kind{font-size:11px;color:var(--muted)}
+  .src .note{font-size:11px;color:var(--muted);margin-top:2px}
+  .src .cnt{margin-left:auto;font-weight:700;font-size:15px}
+  .src .cnt .z{color:var(--muted);font-weight:400;font-size:12px}
   #toast{position:fixed;bottom:18px;right:18px;background:var(--panel2);border:1px solid var(--line);
        padding:10px 14px;border-radius:9px;font-size:13px;opacity:0;transform:translateY(8px);
        transition:.2s;pointer-events:none;max-width:340px}
@@ -86,7 +99,13 @@
   <input id="f-q" type="text" placeholder="search role / company…" style="min-width:220px">
   <div class="spacer"></div>
   <span class="count" id="count"></span>
+  <button class="btn" id="src-btn" onclick="toggleSources()">📡 Sources</button>
   <button class="btn" onclick="load()">↻ refresh</button>
+</div>
+
+<div id="sources" hidden>
+  <div class="src-head">Where roles come from <span class="muted" id="src-total"></span></div>
+  <div id="src-grid"></div>
 </div>
 
 <table>
@@ -207,6 +226,33 @@ function editNotes(x, disp){
     td.innerHTML=`<div class="disp" title="click to edit">${esc(x.notes)||'<span class="muted">+ note</span>'}</div>`;
     td.querySelector(".disp").onclick=e=>editNotes(x,e.currentTarget);
   };
+}
+let SRC_OPEN=false;
+async function toggleSources(){
+  SRC_OPEN=!SRC_OPEN;
+  $("#sources").hidden=!SRC_OPEN;
+  $("#src-btn").classList.toggle("primary",SRC_OPEN);
+  if(!SRC_OPEN) return;
+  const d=await (await fetch("/api/sources")).json();
+  $("#src-total").textContent=`· ${d.total_leads} leads in store`;
+  const order={live:0,"needs-key":1,blocked:2,planned:3};
+  const label={live:"LIVE",["needs-key"]:"NEEDS KEY",blocked:"BLOCKED (email)",planned:"PLANNED"};
+  d.sources.sort((a,b)=>(order[a.status]-order[b.status])||(b.count-a.count));
+  const grid=$("#src-grid"); grid.innerHTML="";
+  let cur=null;
+  for(const s of d.sources){
+    if(s.status!==cur){cur=s.status;
+      const h=document.createElement("div");
+      h.style.cssText="grid-column:1/-1;color:var(--muted);font-size:11px;margin:6px 0 2px;font-weight:600";
+      h.textContent=label[s.status]||s.status; grid.appendChild(h);}
+    const el=document.createElement("div"); el.className="src";
+    el.innerHTML=`<span class="dot d-${s.status}"></span>
+      <div><div class="nm">${esc(s.name)}</div>
+        <div class="kind">${esc(s.kind)} · via ${esc(s.channel)}</div>
+        <div class="note">${esc(s.note)}</div></div>
+      <div class="cnt">${s.count>0?s.count:'<span class="z">0</span>'}</div>`;
+    grid.appendChild(el);
+  }
 }
 ["#f-lane","#f-min","#f-enriched","#f-q"].forEach(s=>$(s).addEventListener("input",render));
 load();
