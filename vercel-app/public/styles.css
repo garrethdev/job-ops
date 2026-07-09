@@ -1,0 +1,188 @@
+/* ==========================================================================
+   job-ops dashboard — light theme
+   Sections: 1) tokens  2) base  3) gate  4) topbar  5) toolbar
+             6) table  7) cells  8) buttons  9) notes  10) toast
+   ========================================================================== */
+
+/* 1) Design tokens --------------------------------------------------------- */
+:root {
+  --bg:          #f5f6f8;
+  --surface:     #ffffff;
+  --surface-2:   #f0f2f5;
+  --border:      #e4e7ec;
+  --border-strong:#d3d8e0;
+
+  --text:        #101828;
+  --text-muted:  #667085;
+  --text-faint:  #98a2b3;
+
+  --accent:      #2563eb;
+  --accent-weak: #eef4ff;
+
+  --green:       #067647;  --green-bg: #e7f6ec;
+  --amber:       #b54708;  --amber-bg: #fdf1e3;
+  --red:         #d92d20;  --red-bg:   #fef3f2;
+
+  --chip-bg:     #eef1f5;
+
+  --radius:      8px;
+  --radius-sm:   6px;
+  --radius-lg:   12px;
+  --shadow-sm:   0 1px 2px rgba(16,24,40,.06);
+  --shadow-md:   0 4px 16px rgba(16,24,40,.08);
+
+  --font: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif;
+}
+
+/* 2) Base ------------------------------------------------------------------ */
+* { box-sizing: border-box; }
+body {
+  margin: 0;
+  font: 14px/1.5 var(--font);
+  color: var(--text);
+  background: var(--bg);
+}
+a { color: var(--accent); text-decoration: none; }
+a:hover { text-decoration: underline; }
+.muted { color: var(--text-muted); }
+
+/* 3) Password gate --------------------------------------------------------- */
+.gate {
+  position: fixed; inset: 0; z-index: 50;
+  display: flex; align-items: center; justify-content: center;
+  background: var(--bg);
+}
+.gate__card {
+  width: 320px; padding: 32px 28px; text-align: center;
+  background: var(--surface);
+  border: 1px solid var(--border);
+  border-radius: var(--radius-lg);
+  box-shadow: var(--shadow-md);
+}
+.gate__brand { font-size: 20px; font-weight: 700; letter-spacing: -.01em; }
+.gate__hint  { color: var(--text-muted); font-size: 13px; margin: 6px 0 18px; }
+.gate__input {
+  width: 100%; padding: 10px 12px; font-size: 14px;
+  color: var(--text); background: var(--surface);
+  border: 1px solid var(--border-strong); border-radius: var(--radius);
+}
+.gate__input:focus { outline: none; border-color: var(--accent); box-shadow: 0 0 0 3px var(--accent-weak); }
+.gate__err { color: var(--red); font-size: 12px; height: 16px; margin-top: 10px; }
+
+/* 4) Topbar ---------------------------------------------------------------- */
+.topbar {
+  display: flex; align-items: center; gap: 14px; flex-wrap: wrap;
+  padding: 14px 22px;
+  background: var(--surface);
+  border-bottom: 1px solid var(--border);
+}
+.topbar__brand { font-size: 16px; font-weight: 650; letter-spacing: -.01em; }
+.topbar__sub   { color: var(--text-faint); font-weight: 500; }
+.topbar__note  { color: var(--text-muted); font-size: 12px; }
+.badge {
+  font-size: 11px; font-weight: 600; padding: 3px 9px; border-radius: 20px;
+  background: var(--chip-bg); color: var(--text-muted);
+}
+.badge.ok { background: var(--green-bg); color: var(--green); }
+.badge.no { background: var(--red-bg);   color: var(--red); }
+
+/* 5) Toolbar --------------------------------------------------------------- */
+.toolbar {
+  display: flex; align-items: center; gap: 12px; flex-wrap: wrap;
+  padding: 12px 22px;
+  background: var(--surface);
+  border-bottom: 1px solid var(--border);
+}
+.field { display: flex; align-items: center; gap: 7px; font-size: 12px; color: var(--text-muted); }
+.field--check { gap: 6px; cursor: pointer; }
+.input {
+  font-size: 13px; color: var(--text);
+  background: var(--surface); border: 1px solid var(--border-strong);
+  border-radius: var(--radius-sm); padding: 7px 10px;
+}
+.input:focus { outline: none; border-color: var(--accent); box-shadow: 0 0 0 3px var(--accent-weak); }
+.input--num { width: 60px; }
+.input--search { min-width: 240px; }
+.toolbar__spacer { flex: 1; }
+.toolbar__count { color: var(--text-muted); font-size: 12px; }
+
+/* 6) Table ----------------------------------------------------------------- */
+.table-wrap { overflow-x: auto; }
+.leads { width: 100%; border-collapse: collapse; }
+.leads thead th {
+  position: sticky; top: 0; z-index: 1;
+  text-align: left; font-size: 11px; font-weight: 600;
+  text-transform: uppercase; letter-spacing: .04em;
+  color: var(--text-faint);
+  padding: 11px 14px;
+  background: var(--surface);
+  border-bottom: 1px solid var(--border);
+}
+.leads tbody td {
+  padding: 13px 14px; vertical-align: top;
+  border-bottom: 1px solid var(--border);
+}
+.leads tbody tr:hover td { background: var(--surface-2); }
+.col-fit { width: 48px; }
+
+/* 7) Cells ----------------------------------------------------------------- */
+.score {
+  display: inline-block; min-width: 30px; text-align: center;
+  font-weight: 700; font-size: 14px; padding: 3px 6px; border-radius: var(--radius-sm);
+}
+.score.s-hi  { background: var(--green-bg); color: var(--green); }
+.score.s-mid { background: var(--amber-bg); color: var(--amber); }
+.score.s-lo  { background: var(--chip-bg);  color: var(--text-muted); }
+
+.role { font-weight: 600; }
+.rationale { color: var(--text-muted); font-size: 12px; margin-top: 3px; max-width: 340px; }
+.flags { color: var(--amber); font-size: 12px; margin-top: 3px; }
+.loc   { color: var(--text-faint); font-size: 12px; margin-top: 2px; }
+
+.lane {
+  display: inline-block; white-space: nowrap;
+  font-size: 11px; font-weight: 500; padding: 3px 9px; border-radius: 20px;
+  background: var(--accent-weak); color: var(--accent);
+}
+
+.contact__name { font-weight: 600; }
+.contact__title { color: var(--text-muted); font-size: 12px; }
+.contact__row { display: flex; gap: 12px; flex-wrap: wrap; margin-top: 4px; font-size: 12px; }
+
+/* 8) Buttons --------------------------------------------------------------- */
+.btn {
+  font-size: 12px; font-weight: 500; white-space: nowrap; cursor: pointer;
+  color: var(--text); background: var(--surface);
+  border: 1px solid var(--border-strong); border-radius: var(--radius-sm);
+  padding: 6px 11px;
+  transition: border-color .12s, background .12s;
+}
+.btn:hover { border-color: var(--accent); }
+.btn:disabled { opacity: .5; cursor: default; }
+.btn--primary { color: #fff; background: var(--accent); border-color: var(--accent); }
+.btn--primary:hover { background: #1d4ed8; border-color: #1d4ed8; }
+.btn--block { width: 100%; margin-top: 12px; padding: 10px; font-size: 14px; }
+.btn--danger:hover { border-color: var(--red); color: var(--red); }
+.acts { display: flex; gap: 6px; flex-wrap: wrap; }
+
+/* 9) Notes ----------------------------------------------------------------- */
+.notes__disp { font-size: 12px; color: var(--text-muted); max-width: 220px; white-space: pre-wrap; cursor: text; }
+.notes__edit { display: flex; flex-direction: column; gap: 6px; }
+.notes__edit textarea {
+  width: 240px; height: 54px; resize: vertical; font: 12px/1.4 var(--font);
+  color: var(--text); background: var(--surface);
+  border: 1px solid var(--border-strong); border-radius: var(--radius-sm); padding: 7px;
+}
+.notes__edit textarea:focus { outline: none; border-color: var(--accent); box-shadow: 0 0 0 3px var(--accent-weak); }
+
+/* 10) Empty state + toast -------------------------------------------------- */
+.empty { padding: 64px; text-align: center; color: var(--text-muted); }
+.toast {
+  position: fixed; bottom: 20px; right: 20px; z-index: 40; max-width: 340px;
+  font-size: 13px; padding: 11px 15px;
+  color: var(--text); background: var(--surface);
+  border: 1px solid var(--border); border-radius: var(--radius);
+  box-shadow: var(--shadow-md);
+  opacity: 0; transform: translateY(8px); transition: .2s; pointer-events: none;
+}
+.toast.show { opacity: 1; transform: none; }
