@@ -1,0 +1,14 @@
+__pycache__/
+*.pyc
+.pytest_cache/
+.venv/
+venv/
+*.egg-info/
+
+# Transient run artifacts (the committed state is store/opportunities.jsonl only)
+digest.md
+store/last_digest.md
+.opps.*.tmp
+
+# Local env
+.env

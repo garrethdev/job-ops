@@ -1,0 +1,63 @@
+name: enrich (Module C)
+
+# Module C — contact-enricher. BLOCKED until APOLLO_API_KEY is in Actions secrets.
+# Runs after new high-fit records exist. Caps Apollo credit spend per run.
+# Cron commented out until the key is set and the per-run cap is confirmed.
+
+on:
+  # schedule:
+  #   - cron: "0 12 * * *"   # daily, after A and B
+  workflow_dispatch: {}
+
+permissions:
+  contents: write
+  issues: write
+
+concurrency:
+  group: enrich
+  cancel-in-progress: false
+
+jobs:
+  enrich:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.11"
+      - run: pip install -r requirements.txt
+      - name: Isolation guard
+        run: python scripts/check_coupling.py
+
+      - name: Preflight — Apollo key present
+        env:
+          APOLLO_API_KEY: ${{ secrets.APOLLO_API_KEY }}
+        run: |
+          [ -n "$APOLLO_API_KEY" ] || { echo "Module C is blocked on APOLLO_API_KEY (docs/SETUP.md)"; exit 1; }
+
+      - name: Run contact-enricher
+        env:
+          APOLLO_API_KEY: ${{ secrets.APOLLO_API_KEY }}
+          # Per-run credit cap — enrich at most this many records.
+          JOBOPS_APOLLO_MAX_LOOKUPS: "25"
+        run: python -m modules.contact_enricher
+
+      - name: Commit updated store
+        run: |
+          git config user.name  "job-ops-bot"
+          git config user.email "job-ops-bot@users.noreply.github.com"
+          if ! git diff --quiet -- store/opportunities.jsonl; then
+            git add store/opportunities.jsonl
+            git commit -m "enrich: add contacts ($(date -u +%Y-%m-%dT%H:%MZ))"
+            git push
+          fi
+
+      - name: Open failure issue
+        if: failure()
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          gh issue create \
+            --title "enrich FAILED — $(date -u +%Y-%m-%d)" \
+            --body "Run: ${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}" \
+            || echo "could not open failure issue"

@@ -1,0 +1,54 @@
+# Module A (email-scanner) — sender/label allowlist
+# Drafted 2026-07-06 from a live scan of the connected inbox (last 60–90 days).
+# Note: alerts are addressed to garreth.dottin@gmail.com / garrethdottin@gmail.com —
+# that Gmail account is what needs the headless OAuth credential for CI, not cryptomiami.net.
+
+senders:
+  # Opportunity-bearing — SCAN these (~200 threads/60d ≈ 3–4/day, fine for daily cron)
+  scan:
+    - jobalerts-noreply@linkedin.com    # LinkedIn job alerts (Baseten, Braze, Shelf, Contech... — architecture lane is well-fed)
+    - jobs-noreply@linkedin.com         # LinkedIn job suggestions AND application-status updates (see routing note)
+    - team@hi.wellfound.com             # Wellfound alerts (incl. video-AI hits, e.g. Prime Video AI Automation TPM)
+    - donotreply@match.indeed.com       # Indeed matches (KPMG, Avalara solutions-architect contracts seen)
+    - noreply@glassdoor.com             # Glassdoor digests (lower signal — batch listings; keep, score will filter)
+
+  # Same domains, zero opportunity content — EXCLUDE explicitly so the classifier never sees them
+  exclude:
+    - invitations@linkedin.com
+    - messages-noreply@linkedin.com
+    - messaging-digest-noreply@linkedin.com
+    - notifications-noreply@linkedin.com
+    - editors-noreply@linkedin.com
+    - security-noreply@linkedin.com
+
+labels:
+  # Existing label, currently unused → repurpose as the manual routing lane:
+  # a Gmail filter (or Garreth manually) tags direct recruiter/founder outreach with it,
+  # and the scanner treats anything under this label as opportunity mail regardless of sender.
+  route_in:
+    name: Claude-Jobs
+    id: Label_15428385008989021
+  # Existing but dormant; fold into Claude-Jobs or delete.
+  legacy:
+    name: JB Search
+    id: Label_6339109354534595890
+
+routing_rules:
+  # jobs-noreply@linkedin.com mixes two message types:
+  #  - "apply to X" / "jobs similar to X"  -> create new opportunity records
+  #  - "your application was sent/viewed"  -> STATUS UPDATE on an existing record (company name in subject); never create a new record
+  status_update_subjects:
+    - "your application was sent"
+    - "your application was viewed"
+
+direct_outreach:
+  # Recruiter/founder cold email can't be sender-allowlisted. Two mechanisms:
+  # 1. Gmail filter -> Claude-Jobs label (preferred, human-confirmable)
+  # 2. Fallback keyword query the scanner runs weekly:
+  fallback_query: 'subject:(role OR opportunity OR position OR hiring OR engagement) -from:linkedin.com -from:indeed.com -from:glassdoor.com -from:wellfound.com newer_than:7d'
+
+marketplaces:
+  # Scanned Upwork/Contra/Toptal/Braintrust/BuiltIn/WWR/RemoteOK senders: ~zero alert volume.
+  # Conclusion: freelance-marketplace coverage must come from Module B (web-checker),
+  # or by turning on email alerts inside those platforms (cheapest fix — recommended).
+  action: enable platform email alerts on Wellfound (already on), Upwork, Contra

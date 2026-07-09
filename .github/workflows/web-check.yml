@@ -1,0 +1,80 @@
+name: web-check (Module B)
+
+# Module B — web-checker. Daily cron. Fetches API/RSS sources, scores, dedupes,
+# commits the updated store back to the repo, and opens a digest issue when there
+# are new opportunities. Scoped secrets: ANTHROPIC (optional), FIRECRAWL (future).
+# The state-commit at the end also keeps the repo "active" so free-runner crons
+# are less likely to be skipped (GAMEPLAN §6).
+
+on:
+  schedule:
+    - cron: "0 11 * * *"   # 11:00 UTC ~= 7:00 ET daily
+  workflow_dispatch: {}
+
+# Least privilege: this workflow can write repo contents (the store) and issues.
+permissions:
+  contents: write
+  issues: write
+
+concurrency:
+  group: web-check
+  cancel-in-progress: false
+
+jobs:
+  web-check:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.11"
+
+      - name: Install dependencies
+        run: pip install -r requirements.txt
+
+      - name: Isolation guard (no cross-module imports)
+        run: python scripts/check_coupling.py
+
+      - name: Run web-checker
+        id: run
+        env:
+          # Optional. Absent => free deterministic heuristic scorer (no billed calls).
+          ANTHROPIC_API_KEY: ${{ secrets.ANTHROPIC_API_KEY }}
+          FIRECRAWL_API_KEY: ${{ secrets.FIRECRAWL_API_KEY }}
+        run: python -m modules.web_checker --digest-out digest.md
+
+      - name: Commit updated store
+        run: |
+          git config user.name  "job-ops-bot"
+          git config user.email "job-ops-bot@users.noreply.github.com"
+          if ! git diff --quiet -- store/opportunities.jsonl; then
+            git add store/opportunities.jsonl
+            git commit -m "web-check: update store ($(date -u +%Y-%m-%dT%H:%MZ))"
+            git push
+          else
+            echo "store unchanged, nothing to commit"
+          fi
+
+      - name: Open digest issue (only when there are new opportunities)
+        if: steps.run.outputs.added != '0' && steps.run.outputs.added != ''
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          gh issue create \
+            --title "${{ steps.run.outputs.digest_title }}" \
+            --body-file digest.md \
+            --label "digest,web-check" || \
+          gh issue create \
+            --title "${{ steps.run.outputs.digest_title }}" \
+            --body-file digest.md
+
+      - name: Open failure issue
+        if: failure()
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          gh issue create \
+            --title "web-check FAILED — $(date -u +%Y-%m-%d)" \
+            --body "The web-check workflow failed. Run: ${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}" \
+            || echo "could not open failure issue"

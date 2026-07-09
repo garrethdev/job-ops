@@ -1,0 +1,60 @@
+# web-checker sources. One entry per board/marketplace.
+# adapter  : which adapter module handles it (adapters/<adapter>.py)
+# enabled  : set false to disable a source without deleting it
+# source   : store 'source' value (board | marketplace)
+# limit    : max records to pull per run (pre-filter cap)
+# keywords : lane pre-filter — a fetched item must contain >=1 of these
+#            substrings (case-insensitive) before it is scored/stored. Keeps
+#            high-volume feeds (HN) from dumping unrelated jobs. Mirrors
+#            ai-job-search's "pre-filter on snippets before fetching" rule.
+
+sources:
+  - name: remoteok
+    adapter: remoteok
+    enabled: true
+    source: board
+    limit: 60
+    keywords:
+      - engineer
+      - developer
+      - architect
+      - backend
+      - platform
+      - ai
+      - video
+      - ml
+
+  - name: weworkremotely-programming
+    adapter: weworkremotely
+    enabled: true
+    source: board
+    limit: 40
+    feeds:
+      - "https://weworkremotely.com/categories/remote-programming-jobs.rss"
+      - "https://weworkremotely.com/categories/remote-devops-sysadmin-jobs.rss"
+    keywords:
+      - engineer
+      - developer
+      - architect
+      - backend
+      - platform
+      - ai
+      - video
+
+  - name: hn-whoishiring
+    adapter: hn_whoishiring
+    enabled: true
+    source: board
+    limit: 50
+    keywords:
+      - remote
+      - engineer
+      - backend
+      - platform
+      - architect
+      - ai
+      - video
+      - ml
+
+# JS-rendered sources (LinkedIn/Upwork/etc.) route through Firecrawl or email
+# alerts (Module A), not naive scraping — see GAMEPLAN §3. Left unconfigured here.

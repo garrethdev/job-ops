@@ -1,0 +1,63 @@
+name: email-scan (Module A)
+
+# Module A — email-scanner. BLOCKED until Gmail OAuth for the gmail.com account
+# (garreth.dottin@gmail.com / garrethdottin@gmail.com — NOT cryptomiami.net) is
+# provisioned and stored as Actions secrets. See docs/SETUP.md.
+#
+# The daily cron is intentionally commented out so this does not run (and fail)
+# before credentials exist. Uncomment the schedule once GMAIL_* secrets are set.
+
+on:
+  # schedule:
+  #   - cron: "30 11 * * *"   # daily, offset from web-check
+  workflow_dispatch: {}
+
+permissions:
+  contents: write
+  issues: write
+
+concurrency:
+  group: email-scan
+  cancel-in-progress: false
+
+jobs:
+  email-scan:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.11"
+      - run: pip install -r requirements.txt
+      - name: Isolation guard
+        run: python scripts/check_coupling.py
+
+      - name: Preflight — required secrets present
+        env:
+          GMAIL_CLIENT_ID: ${{ secrets.GMAIL_CLIENT_ID }}
+          GMAIL_CLIENT_SECRET: ${{ secrets.GMAIL_CLIENT_SECRET }}
+          GMAIL_REFRESH_TOKEN: ${{ secrets.GMAIL_REFRESH_TOKEN }}
+        run: |
+          missing=0
+          for v in GMAIL_CLIENT_ID GMAIL_CLIENT_SECRET GMAIL_REFRESH_TOKEN; do
+            if [ -z "${!v}" ]; then echo "MISSING secret: $v"; missing=1; fi
+          done
+          [ "$missing" = "0" ] || { echo "Module A is blocked on Gmail OAuth (docs/SETUP.md)"; exit 1; }
+
+      - name: Run email-scanner
+        env:
+          GMAIL_CLIENT_ID: ${{ secrets.GMAIL_CLIENT_ID }}
+          GMAIL_CLIENT_SECRET: ${{ secrets.GMAIL_CLIENT_SECRET }}
+          GMAIL_REFRESH_TOKEN: ${{ secrets.GMAIL_REFRESH_TOKEN }}
+          ANTHROPIC_API_KEY: ${{ secrets.ANTHROPIC_API_KEY }}
+        run: python -m modules.email_scanner --digest-out digest.md
+
+      - name: Open failure issue
+        if: failure()
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          gh issue create \
+            --title "email-scan FAILED — $(date -u +%Y-%m-%d)" \
+            --body "Run: ${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}" \
+            || echo "could not open failure issue"

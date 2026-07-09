@@ -1,0 +1,38 @@
+name: ci
+
+on:
+  push:
+    branches: [main]
+  pull_request: {}
+
+permissions:
+  contents: read
+
+jobs:
+  test:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.11"
+
+      - name: Install dependencies
+        run: pip install -r requirements.txt
+
+      - name: Isolation guard (no cross-module imports; core imports no module)
+        run: python scripts/check_coupling.py
+
+      - name: Vendor is quarantined (present, pinned, never executed by CI)
+        run: |
+          test -f vendor/VENDOR_SHA || { echo "vendor SHA not recorded"; exit 1; }
+          echo "vendor pinned @ $(cat vendor/VENDOR_SHA)"
+          # CI collects tests from tests/ only. Assert nothing under vendor/ is
+          # imported or run: fail if any first-party file imports the vendor tree.
+          if grep -rEn "import[[:space:]]+vendor|from[[:space:]]+vendor" core modules scripts tests; then
+            echo "first-party code must not import vendored code"; exit 1
+          fi
+
+      - name: Run tests
+        run: pytest tests/ -q

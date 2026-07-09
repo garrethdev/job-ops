@@ -1,0 +1,10 @@
+# job-ops runtime dependencies.
+# Core + web-checker use only the Python standard library (urllib, json, xml,
+# hashlib, re) — no third-party deps required for the M1/M2 pipeline.
+#
+# PyYAML: parses sources.yaml. The module ships a stdlib fallback parser so it
+# also runs where PyYAML is absent, but CI installs the real thing.
+PyYAML>=6.0
+
+# Test runner (CI).
+pytest>=7.4
