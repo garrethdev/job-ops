@@ -12,3 +12,7 @@ store/last_digest.md
 
 # Local env
 .env
+
+# vercel / node
+.vercel/
+node_modules/

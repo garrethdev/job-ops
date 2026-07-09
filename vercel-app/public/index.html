@@ -1,0 +1,185 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>job-ops · leads</title>
+<style>
+  :root{--bg:#0f1216;--panel:#161b22;--panel2:#1c232d;--line:#2a333f;--txt:#e6edf3;
+    --muted:#8b98a5;--accent:#4c8dff;--good:#3fb950;--warn:#d29922;--bad:#f85149;--chip:#21303f}
+  *{box-sizing:border-box}
+  body{margin:0;font:14px/1.45 -apple-system,BlinkMacSystemFont,"Segoe UI",Roboto,sans-serif;background:var(--bg);color:var(--txt)}
+  header{padding:16px 20px;border-bottom:1px solid var(--line);display:flex;align-items:center;gap:16px;flex-wrap:wrap;background:var(--panel)}
+  header h1{font-size:16px;margin:0;font-weight:650}
+  .sub{color:var(--muted);font-size:12px}
+  .pill{font-size:11px;padding:2px 8px;border-radius:20px;background:var(--chip);color:var(--muted)}
+  .pill.ok{color:var(--good)} .pill.no{color:var(--bad)}
+  .toolbar{display:flex;gap:10px;align-items:center;padding:12px 20px;flex-wrap:wrap;border-bottom:1px solid var(--line);background:var(--panel)}
+  .toolbar input,.toolbar select{background:var(--panel2);border:1px solid var(--line);color:var(--txt);border-radius:7px;padding:6px 9px;font-size:13px}
+  .toolbar label{color:var(--muted);font-size:12px;display:flex;gap:6px;align-items:center}
+  .spacer{flex:1}.count{color:var(--muted);font-size:12px}
+  table{width:100%;border-collapse:collapse}
+  th{position:sticky;top:0;background:var(--panel);text-align:left;font-size:11px;text-transform:uppercase;letter-spacing:.04em;color:var(--muted);padding:10px 12px;border-bottom:1px solid var(--line)}
+  td{padding:11px 12px;border-bottom:1px solid var(--line);vertical-align:top}
+  tr:hover td{background:#141a21}
+  .score{font-weight:700;font-size:15px;width:34px;text-align:center;border-radius:6px;padding:3px 0;display:inline-block}
+  .s-hi{background:rgba(63,185,80,.16);color:var(--good)}.s-mid{background:rgba(210,153,34,.16);color:var(--warn)}.s-lo{background:rgba(139,152,165,.14);color:var(--muted)}
+  .role{font-weight:600}.rationale{color:var(--muted);font-size:12px;margin-top:3px;max-width:340px}
+  .lane{font-size:11px;padding:2px 8px;border-radius:20px;background:var(--chip);white-space:nowrap}
+  .company a,.contact a{color:var(--accent);text-decoration:none}
+  .company a:hover,.contact a:hover{text-decoration:underline}
+  .contact .nm{font-weight:600}.contact .tt{color:var(--muted);font-size:12px}
+  .contact .row{display:flex;gap:10px;flex-wrap:wrap;margin-top:3px;font-size:12px}
+  .muted{color:var(--muted)}.flags{color:var(--warn);font-size:12px;margin-top:3px}
+  .btn{background:var(--panel2);border:1px solid var(--line);color:var(--txt);border-radius:7px;padding:5px 9px;font-size:12px;cursor:pointer;white-space:nowrap}
+  .btn:hover{border-color:var(--accent)}.btn.primary{border-color:var(--accent);color:#cfe0ff}
+  .btn.bad:hover{border-color:var(--bad);color:var(--bad)}.btn:disabled{opacity:.5;cursor:default}
+  .acts{display:flex;gap:6px;flex-wrap:wrap}
+  .notes textarea{width:240px;height:52px;background:var(--panel2);border:1px solid var(--line);color:var(--txt);border-radius:7px;padding:6px;font:12px/1.4 inherit;resize:vertical}
+  .notes .disp{font-size:12px;color:var(--muted);max-width:220px;white-space:pre-wrap;cursor:text}
+  #toast{position:fixed;bottom:18px;right:18px;background:var(--panel2);border:1px solid var(--line);padding:10px 14px;border-radius:9px;font-size:13px;opacity:0;transform:translateY(8px);transition:.2s;pointer-events:none;max-width:340px}
+  #toast.show{opacity:1;transform:none}
+  .empty{padding:60px;text-align:center;color:var(--muted)}
+  #gate{position:fixed;inset:0;background:var(--bg);display:flex;align-items:center;justify-content:center;z-index:50}
+  #gate .box{background:var(--panel);border:1px solid var(--line);border-radius:12px;padding:28px;width:320px;text-align:center}
+  #gate h2{margin:0 0 6px;font-size:18px}#gate p{color:var(--muted);font-size:13px;margin:0 0 16px}
+  #gate input{width:100%;padding:10px;border-radius:8px;border:1px solid var(--line);background:var(--panel2);color:var(--txt);font-size:14px}
+  #gate button{width:100%;margin-top:10px;padding:10px;border-radius:8px;border:1px solid var(--accent);background:var(--accent);color:#fff;font-size:14px;cursor:pointer}
+  #gate .err{color:var(--bad);font-size:12px;height:16px;margin-top:8px}
+</style>
+</head>
+<body>
+<div id="gate" hidden>
+  <div class="box">
+    <h2>job-ops</h2>
+    <p>Enter the dashboard password.</p>
+    <input id="pw" type="password" placeholder="password" autocomplete="current-password">
+    <button onclick="submitPw()">Unlock</button>
+    <div class="err" id="pwerr"></div>
+  </div>
+</div>
+
+<header>
+  <h1>job-ops <span class="sub">· leads</span></h1>
+  <span id="apollo" class="pill">apollo …</span>
+  <span class="sub">Find LinkedIn = 1 Apollo credit · reveals LinkedIn + email</span>
+</header>
+
+<div class="toolbar">
+  <label>lane
+    <select id="f-lane">
+      <option value="">all</option>
+      <option value="ai-consultant">AI Consultant</option>
+      <option value="software-architect">Software Architect</option>
+      <option value="gtm-engineer">GTM Engineer</option>
+      <option value="ai-video-editor">AI Video Editor</option>
+    </select>
+  </label>
+  <label>min fit <input id="f-min" type="number" min="0" max="10" value="0" style="width:56px"></label>
+  <label><input id="f-enriched" type="checkbox"> only un-revealed</label>
+  <input id="f-q" type="text" placeholder="search role / company…" style="min-width:220px">
+  <div class="spacer"></div>
+  <span class="count" id="count"></span>
+  <button class="btn" onclick="load()">↻ refresh</button>
+  <button class="btn" onclick="logout()">lock</button>
+</div>
+
+<table><thead><tr>
+  <th>Fit</th><th>Role</th><th>Company</th><th>Lane</th><th>Contact</th><th>Notes</th><th>Actions</th>
+</tr></thead><tbody id="rows"></tbody></table>
+<div id="empty" class="empty" hidden>No leads match.</div>
+<div id="toast"></div>
+
+<script>
+let LEADS=[];
+const $=s=>document.querySelector(s);
+const esc=s=>(s||"").replace(/[&<>"]/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;'}[c]));
+const KEY=()=>localStorage.getItem("dashkey")||"";
+const H=()=>({"x-dash-key":KEY(),"Content-Type":"application/json"});
+function toast(m,ms=2600){const t=$("#toast");t.textContent=m;t.classList.add("show");clearTimeout(t._h);t._h=setTimeout(()=>t.classList.remove("show"),ms);}
+
+function showGate(err){$("#gate").hidden=false;$("#pwerr").textContent=err||"";$("#pw").focus();}
+function submitPw(){localStorage.setItem("dashkey",$("#pw").value);$("#gate").hidden=true;load();}
+function logout(){localStorage.removeItem("dashkey");location.reload();}
+$("#pw")&&$("#pw").addEventListener("keydown",e=>{if(e.key==="Enter")submitPw();});
+
+async function api(path,opts){
+  const r=await fetch(path,{...opts,headers:{...H(),...(opts&&opts.headers||{})}});
+  if(r.status===401){localStorage.removeItem("dashkey");showGate("Wrong password. Try again.");throw new Error("unauthorized");}
+  return r;
+}
+
+async function load(){
+  if(!KEY()){showGate();return;}
+  let d;
+  try{ d=await (await api("/api/leads")).json(); }catch(e){ return; }
+  LEADS=d.leads||[];
+  const ap=$("#apollo");ap.textContent=d.apollo_ready?"apollo ready":"apollo: no key";ap.className="pill "+(d.apollo_ready?"ok":"no");
+  render();
+}
+function scoreClass(s){return s>=8?"s-hi":s>=6?"s-mid":"s-lo";}
+function laneLabel(l){return ({"gtm-engineer":"GTM Engineer","software-architect":"Software Architect","ai-consultant":"AI Consultant","ai-video-editor":"AI Video Editor"}[l]||l||"—");}
+
+function render(){
+  const lane=$("#f-lane").value,min=+$("#f-min").value,onlyNew=$("#f-enriched").checked,q=$("#f-q").value.toLowerCase();
+  const rows=$("#rows");rows.innerHTML="";
+  const list=LEADS.filter(x=>(!lane||x.lane===lane)&&(x.fit_score>=min)&&(!onlyNew||!(x.contact&&x.contact.linkedin))&&(!q||(x.title+" "+x.company).toLowerCase().includes(q)));
+  $("#count").textContent=list.length+" / "+LEADS.length+" leads";
+  $("#empty").hidden=list.length>0;
+  for(const x of list) rows.appendChild(rowEl(x));
+}
+function rowEl(x){
+  const tr=document.createElement("tr");tr.dataset.id=x.id;const c=x.contact||{};
+  const contactHtml=c.linkedin?`<div class="nm">${esc(c.name)}</div><div class="tt">${esc(c.title)}</div>
+    <div class="row">${c.linkedin?`<a href="${esc(c.linkedin)}" target="_blank">LinkedIn ↗</a>`:""}${c.email?`<a href="mailto:${esc(c.email)}">${esc(c.email)}</a>`:'<span class="muted">no email</span>'}</div>`:`<span class="muted">—</span>`;
+  const flags=(x.red_flags||[]).length?`<div class="flags">⚠ ${esc(x.red_flags.join("; "))}</div>`:"";
+  tr.innerHTML=`
+    <td><span class="score ${scoreClass(x.fit_score)}">${x.fit_score??"·"}</span></td>
+    <td><div class="role">${esc(x.title)}</div><div class="rationale">${esc(x.fit_rationale||"")}</div>${flags}</td>
+    <td class="company">${x.url?`<a href="${esc(x.url)}" target="_blank">${esc(x.company)} ↗</a>`:esc(x.company)}<div class="muted" style="font-size:12px">${esc(x.location||"")}</div></td>
+    <td><span class="lane">${laneLabel(x.lane)}</span></td>
+    <td class="contact">${contactHtml}</td>
+    <td class="notes"><div class="disp" title="click to edit">${esc(x.notes)||'<span class="muted">+ note</span>'}</div></td>
+    <td><div class="acts"><button class="btn primary act-li">${c.linkedin?"✓ LinkedIn":"🔗 Find LinkedIn"}</button><button class="btn act-em">✉ Email</button><button class="btn bad act-rej" title="reject (hides it, remembers your no)">🗑</button></div></td>`;
+  tr.querySelector(".act-li").onclick=()=>enrich(x.id,tr);
+  tr.querySelector(".act-em").onclick=()=>findEmail(x.id,tr);
+  tr.querySelector(".act-rej").onclick=()=>reject(x.id,tr);
+  tr.querySelector(".notes .disp").onclick=e=>editNotes(x,e.currentTarget);
+  return tr;
+}
+async function enrich(id,tr){
+  const lead=LEADS.find(l=>l.id===id);
+  if(lead.contact&&lead.contact.linkedin){toast("Already revealed (no credit).");return;}
+  const btn=tr.querySelector(".act-li");btn.disabled=true;btn.textContent="⏳ finding…";
+  try{
+    const d=await (await api(`/api/enrich?id=${encodeURIComponent(id)}`,{method:"POST"})).json();
+    Object.assign(lead,d.lead);const cr=(d.meta&&d.meta.credits_used)||0;
+    if(d.lead.contact&&d.lead.contact.linkedin)toast(`Found ${d.lead.contact.name} · ${cr} credit`);
+    else toast(`No decision-maker found · 0 credits`);
+    tr.replaceWith(rowEl(lead));
+  }catch(e){btn.disabled=false;btn.textContent="🔗 Find LinkedIn";}
+}
+function findEmail(id,tr){const lead=LEADS.find(l=>l.id===id),c=lead.contact||{};
+  if(c.email){navigator.clipboard&&navigator.clipboard.writeText(c.email);toast("Email: "+c.email+" (copied)");}else enrich(id,tr);}
+async function reject(id,tr){
+  const lead=LEADS.find(l=>l.id===id);
+  if(!confirm(`Reject:\n${lead.title} — ${lead.company}?\n(Hidden from the board; kept so the system learns.)`))return;
+  try{await api(`/api/reject?id=${encodeURIComponent(id)}`,{method:"POST"});LEADS=LEADS.filter(l=>l.id!==id);tr.remove();render();toast("Rejected.");}catch(e){}
+}
+function editNotes(x,disp){
+  const td=disp.parentElement;
+  td.innerHTML=`<textarea>${esc(x.notes)}</textarea><div style="margin-top:5px"><button class="btn primary">save</button> <button class="btn cancel">cancel</button></div>`;
+  const ta=td.querySelector("textarea");ta.focus();
+  const restore=()=>{td.innerHTML=`<div class="disp" title="click to edit">${esc(x.notes)||'<span class="muted">+ note</span>'}</div>`;td.querySelector(".disp").onclick=e=>editNotes(x,e.currentTarget);};
+  td.querySelector(".primary").onclick=async()=>{
+    try{const d=await (await api(`/api/notes?id=${encodeURIComponent(x.id)}`,{method:"POST",body:JSON.stringify({notes:ta.value})})).json();
+      x.notes=d.lead.notes;const lead=LEADS.find(l=>l.id===x.id);if(lead)lead.notes=d.lead.notes;toast("Note saved.");}catch(e){}
+    restore();
+  };
+  td.querySelector(".cancel").onclick=restore;
+}
+["#f-lane","#f-min","#f-enriched","#f-q"].forEach(s=>$(s).addEventListener("input",render));
+load();
+</script>
+</body>
+</html>
