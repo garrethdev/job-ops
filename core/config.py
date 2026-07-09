@@ -71,3 +71,8 @@ def openrouter_key() -> str | None:
 def apollo_key() -> str | None:
     """Return the Apollo API key if present, else None."""
     return os.environ.get("APOLLO_API_KEY") or None
+
+
+def firecrawl_key() -> str | None:
+    """Return the Firecrawl API key if present, else None."""
+    return os.environ.get("FIRECRAWL_API_KEY") or None

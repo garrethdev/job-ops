@@ -23,9 +23,11 @@ SOURCE_REGISTRY = [
      "status": "live", "note": "Programming + DevOps/SysAdmin category feeds"},
     {"key": "hn-whoishiring", "name": "HN “Who is hiring?”", "kind": "Algolia API", "channel": "web-checker",
      "status": "live", "note": "Monthly thread; keyword pre-filtered to the 4 roles"},
-    # --- CONFIGURED but needs a key ---
-    {"key": "firecrawl", "name": "Firecrawl", "kind": "scrape (JS render)", "channel": "web-checker",
-     "status": "needs-key", "note": "For JS-rendered boards; needs FIRECRAWL_API_KEY (none wired yet)"},
+    # --- LIVE via Firecrawl (JS-rendered boards, structured extract) ---
+    {"key": "himalayas", "name": "Himalayas", "kind": "Firecrawl extract", "channel": "web-checker",
+     "status": "live", "note": "JS-rendered remote board; needs FIRECRAWL_API_KEY"},
+    {"key": "remote-co", "name": "Remote.co", "kind": "Firecrawl extract", "channel": "web-checker",
+     "status": "live", "note": "JS-rendered remote board; needs FIRECRAWL_API_KEY"},
     # --- PLANNED via email (Module A, blocked on Gmail OAuth) ---
     {"key": "linkedin-alerts", "name": "LinkedIn job alerts", "kind": "email", "channel": "email-scanner",
      "status": "blocked", "note": "jobalerts-noreply@linkedin.com — needs Gmail OAuth"},

@@ -11,6 +11,7 @@ _ADAPTERS = {
     "remoteok": "modules.web_checker.adapters.remoteok",
     "weworkremotely": "modules.web_checker.adapters.weworkremotely",
     "hn_whoishiring": "modules.web_checker.adapters.hn_whoishiring",
+    "firecrawl": "modules.web_checker.adapters.firecrawl",
 }
 
 

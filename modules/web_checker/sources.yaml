@@ -63,5 +63,43 @@ sources:
       - video
       - editor
 
-# JS-rendered sources (LinkedIn/Upwork/etc.) route through Firecrawl or email
-# alerts (Module A), not naive scraping — see GAMEPLAN §3. Left unconfigured here.
+  # --- Firecrawl-backed (JS-rendered boards, structured extract) ---
+  # Needs FIRECRAWL_API_KEY. Costs Firecrawl credits per board scrape.
+  - name: himalayas
+    adapter: firecrawl
+    enabled: true
+    source: board
+    limit: 25
+    url: "https://himalayas.app/jobs"
+    keywords:
+      - engineer
+      - architect
+      - solutions
+      - gtm
+      - growth
+      - consultant
+      - ai
+      - video
+      - editor
+      - platform
+
+  - name: remote-co
+    adapter: firecrawl
+    enabled: true
+    source: board
+    limit: 25
+    url: "https://remote.co/remote-jobs/"
+    keywords:
+      - engineer
+      - architect
+      - solutions
+      - gtm
+      - growth
+      - consultant
+      - ai
+      - video
+      - editor
+      - platform
+
+# LinkedIn/Upwork route through email alerts (Module A), not naive scraping —
+# see GAMEPLAN §3.
