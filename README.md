@@ -23,7 +23,8 @@ profiles/             gtm-engineer.md, software-architect.md, ai-consultant.md, 
 modules/
   web_checker/        Module B — API/RSS sources -> score -> dedupe -> store -> digest   [M2 ✅]
   email_scanner/      Module A — Gmail allowlist -> classify/route -> store             [M3 ⛔ Gmail OAuth]
-  contact_enricher/   Module C — Apollo enrichment of high-fit records                  [M4 ⛔ Apollo key]
+  contact_enricher/   Module C — Apollo enrichment of high-fit records (cron)           [M4 ⛔ Apollo key]
+  dashboard/          Lead dashboard — local web UI to work leads + reveal contacts     [✅ live]
   apply_pipeline/     Module D — OUR extraction of ai-job-search /apply (local only)    [M5 ⛔ CV docs]
 store/opportunities.jsonl   the one inter-module contract (committed state)
 vendor/ai-job-search/       pinned @ reviewed SHA, reference only, NEVER executed by CI
@@ -57,6 +58,23 @@ pip install -r requirements.txt
 python -m modules.web_checker --dry-run     # preview, no store write
 pytest tests/ -q                            # tests + isolation guard
 ```
+
+## Lead dashboard
+
+A local web UI over the store. Each row is one opportunity; per lead you can
+**Find LinkedIn** (Apollo reveals name + LinkedIn + email in one 1-credit call),
+**Find Email** (shows the cached email, free), add **notes**, or **delete**.
+
+```bash
+python -m modules.web_checker --digest-out digest.md   # seed the store with leads
+python -m modules.dashboard                            # http://127.0.0.1:8787
+```
+
+Needs `APOLLO_API_KEY` in `.env` for the reveal buttons (search is free; only the
+match/reveal costs 1 credit, and re-revealing a lead is cached at 0 credits). The
+Apollo client lives in `core/apollo.py` so the dashboard and the Module C cron
+share it. **Note:** once enriched, `store/opportunities.jsonl` contains real
+contact PII — keep the repo private.
 
 ## Security posture
 

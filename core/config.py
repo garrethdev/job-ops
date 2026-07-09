@@ -66,3 +66,8 @@ def anthropic_key() -> str | None:
 def openrouter_key() -> str | None:
     """Return the OpenRouter API key if present, else None."""
     return os.environ.get("OPENROUTER_API_KEY") or None
+
+
+def apollo_key() -> str | None:
+    """Return the Apollo API key if present, else None."""
+    return os.environ.get("APOLLO_API_KEY") or None

@@ -92,6 +92,7 @@ def new_record(
         "fit_rationale": "",
         "red_flags": [],
         "contact": {"name": "", "title": "", "email": "", "linkedin": ""},
+        "notes": "",
         "status": "new",
     }
 

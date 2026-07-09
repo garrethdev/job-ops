@@ -68,6 +68,39 @@ def save(records: List[Dict[str, Any]], path: Path = STORE_PATH) -> None:
     _atomic_write(records, path)
 
 
+def get_record(record_id: str, path: Path = STORE_PATH) -> Dict[str, Any] | None:
+    for r in load(path):
+        if r.get("id") == record_id:
+            return r
+    return None
+
+
+def update_record(record_id: str, patch: Dict[str, Any], path: Path = STORE_PATH) -> Dict[str, Any] | None:
+    """Shallow-merge `patch` into the record with `record_id`, then persist.
+
+    Returns the updated record, or None if not found. Validated before write.
+    """
+    records = load(path)
+    updated = None
+    for r in records:
+        if r.get("id") == record_id:
+            r.update(patch)
+            updated = r
+            break
+    if updated is not None:
+        save(records, path)
+    return updated
+
+
+def delete_record(record_id: str, path: Path = STORE_PATH) -> bool:
+    records = load(path)
+    kept = [r for r in records if r.get("id") != record_id]
+    if len(kept) == len(records):
+        return False
+    save(kept, path)
+    return True
+
+
 def upsert(incoming: List[Dict[str, Any]], path: Path = STORE_PATH) -> UpsertResult:
     """Add new records, merge re-sightings.
 
