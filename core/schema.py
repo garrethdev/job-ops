@@ -67,11 +67,13 @@ def new_record(
     comp: str = "",
     posted: str = "",
     source_detail: str = "",
+    snippet: str = "",
 ) -> Dict[str, Any]:
     """Construct a fresh record with server-side fields filled in.
 
     lane/fit_score/fit_rationale/red_flags are populated later by scoring.
-    contact is populated later by contact_enricher.
+    contact is populated later by contact_enricher. `snippet` is optional extra
+    text (job description / email body) used as the primary scoring signal.
     """
     ts = now_iso()
     return {
@@ -93,6 +95,7 @@ def new_record(
         "red_flags": [],
         "contact": {"name": "", "title": "", "email": "", "linkedin": ""},
         "notes": "",
+        "snippet": snippet,
         "status": "new",
     }
 

@@ -1,23 +1,13 @@
-/* job-ops dashboard — client logic.
-   Talks only to /api/* (password in x-dash-key header). No secrets here. */
+/* job-ops dashboard — client logic (ES module).
+   Talks only to /api/* (password in x-dash-key header). No secrets here.
+   Pure helpers live in format.js so they can be unit-tested. */
+
+import { esc, safeUrl, safeEmail, laneLabel, scoreClass } from "./format.js";
 
 let LEADS = [];
 const $ = (s) => document.querySelector(s);
-const esc = (s) => (s || "").replace(/[&<>"]/g, (c) => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;" }[c]));
-// Only allow safe http(s) links as clickable hrefs — blocks javascript:/data: URIs
-// coming from third-party (Apollo/scraped) data.
-const safeUrl = (u) => (/^https?:\/\//i.test((u || "").trim()) ? (u || "").trim() : "");
-const safeEmail = (e) => (/^[^\s@,<>"]+@[^\s@,<>"]+\.[^\s@,<>"]+$/.test((e || "").trim()) ? (e || "").trim() : "");
 const KEY = () => localStorage.getItem("dashkey") || "";
 const H = () => ({ "x-dash-key": KEY(), "Content-Type": "application/json" });
-
-const LANE_LABELS = {
-  "gtm-engineer": "GTM Engineer", "software-architect": "Software Architect",
-  "ai-consultant": "AI Consultant", "ai-video-editor": "AI Video Editor",
-  "product-lead": "Product Lead", "marketing-lead": "Marketing Lead", "lookup": "Contact lookup",
-};
-const laneLabel = (l) => LANE_LABELS[l] || l || "—";
-const scoreClass = (s) => (s >= 8 ? "s-hi" : s >= 6 ? "s-mid" : "s-lo");
 
 function toast(msg, ms = 2600) {
   const t = $("#toast");
@@ -252,4 +242,9 @@ async function findContactSearch() {
 /* --- boot ---------------------------------------------------------------- */
 ["#f-lane", "#f-min", "#f-enriched", "#f-q"].forEach((s) => $(s).addEventListener("input", render));
 $("#pw") && $("#pw").addEventListener("keydown", (e) => { if (e.key === "Enter") submitPw(); });
+
+// This file is a module, so top-level functions aren't global. Expose the ones
+// referenced by inline onclick= handlers in index.html.
+Object.assign(window, { submitPw, logout, load, showTab, craftDraft, findContactSearch });
+
 load();

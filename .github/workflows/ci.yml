@@ -34,5 +34,16 @@ jobs:
             echo "first-party code must not import vendored code"; exit 1
           fi
 
-      - name: Run tests
+      - name: Run Python tests
         run: pytest tests/ -q
+
+  js-test:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: "20"
+      - name: Run JS tests (node built-in runner, zero deps)
+        working-directory: vercel-app
+        run: node --test

@@ -40,8 +40,8 @@ def _build_records(entry: Dict[str, Any]) -> List[Dict[str, Any]]:
             source=p.get("source", "board"), location=p.get("location", ""),
             comp=p.get("comp", ""), posted=p.get("posted", ""),
             source_detail=p.get("source_detail", entry.get("name", "")),
+            snippet=p.get("snippet", ""),  # scoring signal, now a schema field
         )
-        rec["snippet"] = p.get("snippet", "")  # used by scoring, kept in record
         records.append(rec)
     return records
 

@@ -91,8 +91,7 @@ def run(days: int = 3, use_llm: bool = False, dry_run: bool = False,
         if not p:
             continue
         rec = new_record(title=p["title"], company=p["company"], comp=p.get("comp", ""),
-                         source="email", source_detail=sender)
-        rec["snippet"] = msg.get("snippet", "")
+                         source="email", source_detail=sender, snippet=msg.get("snippet", ""))
         opportunities.append(rec)
 
     result.opportunities = len(opportunities)

@@ -2,6 +2,7 @@ import { requireAuth } from "../lib/auth.js";
 import { getLead, patchLead } from "../lib/supa.js";
 import { buildPrompt } from "../lib/voice.js";
 import { createLabeledDraft, OUTREACH_LABEL } from "../lib/gmail.js";
+import { parseEmailJSON } from "../lib/llm.js";
 
 const OPENROUTER_URL = "https://openrouter.ai/api/v1/chat/completions";
 
@@ -23,10 +24,7 @@ async function craftEmail(lead, extraContext) {
   });
   if (!r.ok) throw new Error(`llm ${r.status}: ${(await r.text()).slice(0, 200)}`);
   const data = await r.json();
-  const text = data.choices[0].message.content;
-  const parsed = JSON.parse(text.slice(text.indexOf("{"), text.lastIndexOf("}") + 1));
-  if (!parsed.subject || !parsed.body) throw new Error("llm returned incomplete email");
-  return { subject: String(parsed.subject).slice(0, 150), body: String(parsed.body).slice(0, 4000) };
+  return parseEmailJSON(data.choices[0].message.content);
 }
 
 // POST /api/draft?id=<leadId>  body: {context?} ->

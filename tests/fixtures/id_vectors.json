@@ -1,0 +1,47 @@
+[
+  {
+    "company": "Vercel Inc",
+    "title": "Staff Engineer",
+    "id": "855825b23e7ce7e05b556c5e16d7c5dee5a83f29"
+  },
+  {
+    "company": "Acme LLC",
+    "title": "Backend Engineer",
+    "id": "9f6e2a163ced6f454d74748a2469dad2ff85eec8"
+  },
+  {
+    "company": "Foo Ltd",
+    "title": "Architect",
+    "id": "088fb810ae5e84afe41eec18abdd2c2e603709ca"
+  },
+  {
+    "company": "Bar GmbH",
+    "title": "AI Consultant",
+    "id": "96c687097339e77171a72777324910ff25ad2327"
+  },
+  {
+    "company": "Ben & Jerry's LLC",
+    "title": "Product Lead",
+    "id": "1f163efaf691366757727894cfe248db34258333"
+  },
+  {
+    "company": "AT&T",
+    "title": "Network Engineer",
+    "id": "c12929a7ae8c49a23d33d4d8dcce45f4529e9ed9"
+  },
+  {
+    "company": "OpenAI",
+    "title": "Research Engineer",
+    "id": "7ea451375ce812be7dc052ae0515a6d6ce3ef060"
+  },
+  {
+    "company": "",
+    "title": "",
+    "id": "3eb416223e9e69e6bb8ee19793911ad1ad2027d8"
+  },
+  {
+    "company": "  Spaces   Co  ",
+    "title": "  Senior   Dev  ",
+    "id": "30ce41dc628914e673939a365f0b8713faf669a1"
+  }
+]

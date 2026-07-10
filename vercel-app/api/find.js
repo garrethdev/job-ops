@@ -1,10 +1,7 @@
-import crypto from "crypto";
 import { requireAuth } from "../lib/auth.js";
 import { insertLead } from "../lib/supa.js";
 import { findContact } from "../lib/apollo.js";
-
-const norm = (s) => (s || "").toLowerCase().replace(/[^a-z0-9]+/g, " ").trim();
-const sha1 = (s) => crypto.createHash("sha1").update(s).digest("hex");
+import { makeId } from "../lib/id.js";
 
 // Ad-hoc contact lookup: given a company (+ optional role/lane), find the
 // decision-maker via Apollo and save the result as a lead on the board.
@@ -18,7 +15,7 @@ export default async function handler(req, res) {
     const now = new Date().toISOString();
     const title = (role && role.trim()) || `Contact — ${co}`;
     const row = {
-      id: sha1(norm(co) + "|" + norm(title)),
+      id: makeId(co, title),
       schema_version: 1,
       lane: lane || "lookup",
       source: "manual",

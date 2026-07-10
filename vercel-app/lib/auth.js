@@ -2,7 +2,7 @@
 // in the x-dash-key header (kept in localStorage after the login prompt).
 // Uses a constant-time-ish compare to avoid trivial timing leaks.
 
-function safeEqual(a, b) {
+export function safeEqual(a, b) {
   a = String(a || ""); b = String(b || "");
   if (a.length !== b.length) return false;
   let out = 0;

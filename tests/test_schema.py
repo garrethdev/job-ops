@@ -36,5 +36,17 @@ def test_validate_requires_lane_once_past_new():
     assert any("lane must be set" in e for e in errs)
 
 
+def test_snippet_is_a_first_class_field():
+    r = schema.new_record(title="X", company="Y", source="board", snippet="python api platform")
+    assert r["snippet"] == "python api platform"
+    assert schema.validate(r) == []
+
+
+def test_snippet_defaults_empty_and_survives_validation():
+    r = schema.new_record(title="X", company="Y", source="board")
+    assert r["snippet"] == ""
+    assert schema.validate(r) == []
+
+
 if __name__ == "__main__":
     raise SystemExit(tests._bootstrap.run_module(dict(globals())))

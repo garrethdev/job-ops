@@ -19,15 +19,26 @@ MODULES_DIR = ROOT / "modules"
 CORE_DIR = ROOT / "core"
 
 
-def _imported_names(tree: ast.AST):
+def _pkg_parts(py: Path):
+    """Dotted-package parts of a file, relative to ROOT (drops the filename)."""
+    return py.resolve().relative_to(ROOT).parts[:-1]
+
+
+def _absolute_imports(tree: ast.AST, py: Path):
+    """Yield absolute dotted import targets, resolving relative imports against
+    the file's package so `from ..sibling import x` becomes `modules.sibling`."""
+    pkg = _pkg_parts(py)
     for node in ast.walk(tree):
         if isinstance(node, ast.Import):
             for alias in node.names:
                 yield alias.name
         elif isinstance(node, ast.ImportFrom):
+            module_parts = node.module.split(".") if node.module else []
             if node.level and node.level > 0:
-                # relative import — resolve leading dots against caller later
-                yield ("__rel__", node.level, node.module or "")
+                keep = len(pkg) - (node.level - 1)
+                if keep < 0:
+                    continue  # over-deep relative import; not our concern
+                yield ".".join(list(pkg[:keep]) + module_parts)
             elif node.module:
                 yield node.module
 
@@ -35,14 +46,12 @@ def _imported_names(tree: ast.AST):
 def check() -> int:
     violations = []
 
-    # Rule 1: no cross-module imports.
+    # Rule 1: no cross-module imports (absolute or relative).
     for pkg in sorted(p for p in MODULES_DIR.iterdir() if p.is_dir()):
         own = f"modules.{pkg.name}"
         for py in pkg.rglob("*.py"):
             tree = ast.parse(py.read_text(encoding="utf-8"), filename=str(py))
-            for name in _imported_names(tree):
-                if isinstance(name, tuple):
-                    continue  # relative imports stay within the package by construction
+            for name in _absolute_imports(tree, py):
                 if name == "modules" or (name.startswith("modules.") and not (
                     name == own or name.startswith(own + ".")
                 )):
@@ -53,9 +62,7 @@ def check() -> int:
     # Rule 2: core must not import modules.
     for py in CORE_DIR.rglob("*.py"):
         tree = ast.parse(py.read_text(encoding="utf-8"), filename=str(py))
-        for name in _imported_names(tree):
-            if isinstance(name, tuple):
-                continue
+        for name in _absolute_imports(tree, py):
             if name == "modules" or name.startswith("modules."):
                 violations.append(
                     f"{py.relative_to(ROOT)} (core) imports a module: {name}"
