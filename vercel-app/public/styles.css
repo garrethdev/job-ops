@@ -36,6 +36,9 @@
 
 /* 2) Base ------------------------------------------------------------------ */
 * { box-sizing: border-box; }
+/* The `hidden` attribute must win over component display rules (e.g. .gate uses
+   display:flex, which would otherwise keep a hidden gate on screen). */
+[hidden] { display: none !important; }
 body {
   margin: 0;
   font: 14px/1.5 var(--font);
