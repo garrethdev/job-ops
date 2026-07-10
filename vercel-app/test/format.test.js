@@ -1,6 +1,6 @@
 import { test } from "node:test";
 import assert from "node:assert/strict";
-import { esc, safeUrl, safeEmail, laneLabel, scoreClass } from "../public/format.js";
+import { esc, safeUrl, safeEmail, laneLabel, scoreClass, initials } from "../public/format.js";
 import { looksLikeEmail } from "../lib/mime.js";
 
 test("safeUrl blocks dangerous schemes, keeps http(s)", () => {
@@ -38,6 +38,14 @@ test("laneLabel maps known lanes, passes through unknown, dashes empty", () => {
   assert.equal(laneLabel("marketing-lead"), "Marketing Lead");
   assert.equal(laneLabel("unknown"), "unknown");
   assert.equal(laneLabel(""), "—");
+});
+
+test("initials for avatars", () => {
+  assert.equal(initials("Jim Allen"), "JA");
+  assert.equal(initials("Oliver"), "O");
+  assert.equal(initials("  jane   q   doe "), "JD"); // first + last
+  assert.equal(initials(""), "?");
+  assert.equal(initials(null), "?");
 });
 
 test("scoreClass boundaries at 8 and 6", () => {

@@ -2,7 +2,7 @@
    Talks only to /api/* (password in x-dash-key header). No secrets here.
    Pure helpers live in format.js so they can be unit-tested. */
 
-import { esc, safeUrl, safeEmail, laneLabel, scoreClass } from "./format.js";
+import { esc, safeUrl, safeEmail, laneLabel, scoreClass, initials } from "./format.js";
 
 let LEADS = [];
 const $ = (s) => document.querySelector(s);
@@ -64,11 +64,16 @@ function rowEl(x) {
   const c = x.contact || {};
   const liUrl = safeUrl(c.linkedin), em = safeEmail(c.email);
   const contactHtml = c.linkedin
-    ? `<div class="contact__name">${esc(c.name)}</div>
-       <div class="contact__title">${esc(c.title)}</div>
-       <div class="contact__row">
-         ${liUrl ? `<a href="${esc(liUrl)}" target="_blank" rel="noopener noreferrer">LinkedIn ↗</a>` : ""}
-         ${em ? `<a href="mailto:${esc(em)}">${esc(em)}</a>` : '<span class="muted">no email</span>'}
+    ? `<div class="contact">
+         <div class="avatar">${esc(initials(c.name))}</div>
+         <div class="contact__body">
+           <div class="contact__name">${esc(c.name)}</div>
+           <div class="contact__title">${esc(c.title)}</div>
+           <div class="contact__row">
+             ${liUrl ? `<a href="${esc(liUrl)}" target="_blank" rel="noopener noreferrer">LinkedIn ↗</a>` : ""}
+             ${em ? `<a href="mailto:${esc(em)}">${esc(em)}</a>` : '<span class="muted">no email</span>'}
+           </div>
+         </div>
        </div>`
     : `<span class="muted">—</span>`;
   const flags = (x.red_flags || []).length ? `<div class="flags">⚠ ${esc(x.red_flags.join("; "))}</div>` : "";
@@ -77,7 +82,7 @@ function rowEl(x) {
     <td><div class="role">${esc(x.title)}</div><div class="rationale">${esc(x.fit_rationale || "")}</div>${flags}</td>
     <td>${safeUrl(x.url) ? `<a href="${esc(safeUrl(x.url))}" target="_blank" rel="noopener noreferrer">${esc(x.company)} ↗</a>` : esc(x.company)}
         <div class="loc">${esc(x.location || "")}</div></td>
-    <td><span class="lane">${laneLabel(x.lane)}</span></td>
+    <td><span class="lane lane--${esc(x.lane || "none")}">${laneLabel(x.lane)}</span></td>
     <td>${contactHtml}</td>
     <td><div class="notes__disp" title="click to edit">${esc(x.notes) || '<span class="muted">+ note</span>'}</div></td>
     <td><div class="acts">
