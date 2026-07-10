@@ -23,6 +23,9 @@ export const LANE_LABELS = {
   "lookup": "Contact lookup",
 };
 
+// Drop a leading "[model-tag]" the scorer prepends to rationales, for display.
+export const stripTag = (s) => String(s || "").replace(/^\s*\[[^\]]*\]\s*/, "");
+
 export const laneLabel = (l) => LANE_LABELS[l] || l || "—";
 export const scoreClass = (s) => (s >= 8 ? "s-hi" : s >= 6 ? "s-mid" : "s-lo");
 

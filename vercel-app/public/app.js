@@ -2,7 +2,7 @@
    Talks only to /api/* (password in x-dash-key header). No secrets here.
    Pure helpers live in format.js so they can be unit-tested. */
 
-import { esc, safeUrl, safeEmail, laneLabel, scoreClass, initials, fmtDate } from "./format.js";
+import { esc, safeUrl, safeEmail, laneLabel, scoreClass, initials, fmtDate, stripTag } from "./format.js";
 
 let LEADS = [];
 const $ = (s) => document.querySelector(s);
@@ -79,7 +79,7 @@ function rowEl(x) {
   const flags = (x.red_flags || []).length ? `<div class="flags">⚠ ${esc(x.red_flags.join("; "))}</div>` : "";
   tr.innerHTML = `
     <td><span class="score ${scoreClass(x.fit_score)}">${x.fit_score ?? "·"}</span></td>
-    <td><div class="role">${esc(x.title)}</div><div class="rationale">${esc(x.fit_rationale || "")}</div>${flags}</td>
+    <td><div class="role role--link" title="View role details">${esc(x.title)}</div><div class="rationale">${esc(stripTag(x.fit_rationale))}</div>${flags}</td>
     <td>${safeUrl(x.url) ? `<a href="${esc(safeUrl(x.url))}" target="_blank" rel="noopener noreferrer">${esc(x.company)} ↗</a>` : esc(x.company)}
         <div class="loc">${esc(x.location || "")}</div></td>
     <td><span class="lane lane--${esc(x.lane || "none")}">${laneLabel(x.lane)}</span></td>
@@ -99,6 +99,7 @@ function rowEl(x) {
   tr.querySelector(".act-draft").onclick = () => draftFromRow(x.id);
   tr.querySelector(".act-reach").onclick = () => toggleOutreach(x.id, tr);
   tr.querySelector(".act-rej").onclick = () => reject(x.id, tr);
+  tr.querySelector(".role--link").onclick = () => openDetail(x.id);
   tr.querySelector(".notes__disp").onclick = (e) => editNotes(x, e.currentTarget);
   return tr;
 }
@@ -230,6 +231,38 @@ async function craftDraft() {
   }
 }
 
+/* --- role detail modal --------------------------------------------------- */
+function openDetail(id) {
+  const x = LEADS.find((l) => l.id === id);
+  if (!x) return;
+  const c = x.contact || {};
+  const url = safeUrl(x.url);
+  const meta = [x.location, x.comp, x.source_detail && "via " + x.source_detail]
+    .filter(Boolean).map((m) => `<span class="d-tag">${esc(m)}</span>`).join("");
+  const desc = (x.snippet || "").trim();
+  $("#d-body").innerHTML = `
+    <div class="d-head">
+      <span class="score ${scoreClass(x.fit_score)}">${x.fit_score ?? "·"}</span>
+      <div>
+        <div class="d-title">${esc(x.title)}</div>
+        <div class="d-company">${esc(x.company)} · <span class="lane lane--${esc(x.lane || "none")}">${laneLabel(x.lane)}</span></div>
+      </div>
+    </div>
+    <div class="d-meta">${meta || '<span class="d-tag">no location/comp captured</span>'}
+      ${x.outreached_at ? `<span class="d-tag" style="color:var(--green)">✓ reached out ${esc(fmtDate(x.outreached_at))}</span>` : ""}
+    </div>
+    ${url ? `<a class="d-link" href="${esc(url)}" target="_blank" rel="noopener noreferrer">View original posting ↗</a>` : ""}
+    ${x.fit_rationale ? `<div class="d-section"><h4>Why it fits</h4><div class="d-rationale">${esc(stripTag(x.fit_rationale))}</div></div>` : ""}
+    ${(x.red_flags || []).length ? `<div class="d-section"><h4>Flags</h4><div class="d-flag">⚠ ${esc(x.red_flags.join("; "))}</div></div>` : ""}
+    <div class="d-section"><h4>About the role</h4>
+      <div class="d-desc">${desc ? esc(desc) : '<span class="muted">No description was captured for this role' + (url ? " — open the original posting above." : ".") + "</span>"}</div>
+    </div>
+    ${c.linkedin || c.name ? `<div class="d-section"><h4>Contact</h4><div class="d-rationale">${esc(c.name || "")}${c.title ? " · " + esc(c.title) : ""}${safeUrl(c.linkedin) ? ` · <a href="${esc(safeUrl(c.linkedin))}" target="_blank" rel="noopener noreferrer">LinkedIn ↗</a>` : ""}${safeEmail(c.email) ? ` · <a href="mailto:${esc(safeEmail(c.email))}">${esc(safeEmail(c.email))}</a>` : ""}</div></div>` : ""}
+    ${x.notes ? `<div class="d-section"><h4>Notes</h4><div class="d-rationale">${esc(x.notes)}</div></div>` : ""}`;
+  $("#detail").hidden = false;
+}
+function closeDetail() { $("#detail").hidden = true; }
+
 /* --- find a contact (ad-hoc company lookup) ------------------------------ */
 async function findContactSearch() {
   const company = $("#find-company").value.trim();
@@ -265,6 +298,9 @@ async function findContactSearch() {
 /* --- boot ---------------------------------------------------------------- */
 ["#f-lane", "#f-min", "#f-enriched", "#f-q"].forEach((s) => $(s).addEventListener("input", render));
 $("#pw") && $("#pw").addEventListener("keydown", (e) => { if (e.key === "Enter") submitPw(); });
+$("#d-close").addEventListener("click", closeDetail);
+$("#d-backdrop").addEventListener("click", closeDetail);
+document.addEventListener("keydown", (e) => { if (e.key === "Escape") closeDetail(); });
 
 // This file is a module, so top-level functions aren't global. Expose the ones
 // referenced by inline onclick= handlers in index.html.

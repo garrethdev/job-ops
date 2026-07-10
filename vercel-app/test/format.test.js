@@ -1,6 +1,6 @@
 import { test } from "node:test";
 import assert from "node:assert/strict";
-import { esc, safeUrl, safeEmail, laneLabel, scoreClass, initials, fmtDate } from "../public/format.js";
+import { esc, safeUrl, safeEmail, laneLabel, scoreClass, initials, fmtDate, stripTag } from "../public/format.js";
 import { looksLikeEmail } from "../lib/mime.js";
 
 test("safeUrl blocks dangerous schemes, keeps http(s)", () => {
@@ -54,6 +54,13 @@ test("fmtDate formats ISO -> 'Mon D, YYYY' (UTC), empty for junk", () => {
   assert.equal(fmtDate(""), "");
   assert.equal(fmtDate(null), "");
   assert.equal(fmtDate("not-a-date"), "");
+});
+
+test("stripTag removes a leading [model] tag", () => {
+  assert.equal(stripTag("[deepseek/deepseek-chat-v3-0324] The role focuses on AI."), "The role focuses on AI.");
+  assert.equal(stripTag("No tag here"), "No tag here");
+  assert.equal(stripTag(""), "");
+  assert.equal(stripTag("[a] [b] text"), "[b] text"); // only the first, leading tag
 });
 
 test("scoreClass boundaries at 8 and 6", () => {

@@ -191,6 +191,8 @@ a:hover { color: var(--accent-strong); text-decoration: underline; }
 .score.s-lo  { background: var(--chip-bg);  color: var(--text-muted); }
 
 .role { font-weight: 650; letter-spacing: -.01em; }
+.role--link { cursor: pointer; }
+.role--link:hover { color: var(--accent); text-decoration: underline; text-underline-offset: 2px; }
 .rationale { color: var(--text-muted); font-size: 12px; margin-top: 4px; max-width: 360px; line-height: 1.45; }
 .flags { color: var(--amber); font-size: 12px; margin-top: 4px; font-weight: 500; }
 .loc   { color: var(--text-faint); font-size: 12px; margin-top: 3px; }
@@ -297,3 +299,35 @@ a:hover { color: var(--accent-strong); text-decoration: underline; }
   opacity: 0; transform: translateY(10px); transition: opacity .2s, transform .2s; pointer-events: none;
 }
 .toast.show { opacity: 1; transform: none; }
+
+/* 12) Role detail modal ---------------------------------------------------- */
+.modal { position: fixed; inset: 0; z-index: 60; display: flex; align-items: center; justify-content: center; padding: 24px; }
+.modal__backdrop { position: absolute; inset: 0; background: rgba(15,23,41,.42); backdrop-filter: blur(2px); }
+.modal__card {
+  position: relative; width: 100%; max-width: 620px; max-height: 86vh; overflow-y: auto;
+  background: var(--surface); border: 1px solid var(--border); border-radius: var(--radius-lg);
+  box-shadow: var(--shadow-md); padding: 26px 28px;
+  animation: pop .16s ease-out;
+}
+@keyframes pop { from { opacity: 0; transform: translateY(8px) scale(.99); } to { opacity: 1; transform: none; } }
+.modal__close {
+  position: absolute; top: 14px; right: 14px; width: 30px; height: 30px; line-height: 1;
+  border: 1px solid var(--border); border-radius: 8px; background: var(--surface);
+  color: var(--text-muted); cursor: pointer; font-size: 14px;
+}
+.modal__close:hover { background: var(--surface-3); color: var(--text); }
+
+.d-head { display: flex; align-items: flex-start; gap: 12px; margin-bottom: 4px; padding-right: 34px; }
+.d-title { font-size: 18px; font-weight: 750; letter-spacing: -.02em; line-height: 1.25; }
+.d-company { color: var(--text-muted); font-size: 14px; margin: 2px 0 14px; }
+.d-meta { display: flex; flex-wrap: wrap; gap: 8px; margin-bottom: 16px; }
+.d-tag { font-size: 12px; padding: 4px 10px; border-radius: var(--pill); background: var(--surface-3); color: var(--text-muted); }
+.d-section { margin-top: 16px; }
+.d-section h4 { margin: 0 0 6px; font-size: 11px; font-weight: 700; text-transform: uppercase; letter-spacing: .05em; color: var(--text-faint); }
+.d-desc { font-size: 13px; line-height: 1.6; color: var(--text); white-space: pre-wrap; word-break: break-word; }
+.d-link {
+  display: inline-flex; align-items: center; gap: 6px; margin-top: 4px;
+  font-size: 13px; font-weight: 600;
+}
+.d-rationale { font-size: 13px; color: var(--text-muted); line-height: 1.55; }
+.d-flag { color: var(--amber); font-size: 13px; }
