@@ -4,6 +4,10 @@
 let LEADS = [];
 const $ = (s) => document.querySelector(s);
 const esc = (s) => (s || "").replace(/[&<>"]/g, (c) => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;" }[c]));
+// Only allow safe http(s) links as clickable hrefs — blocks javascript:/data: URIs
+// coming from third-party (Apollo/scraped) data.
+const safeUrl = (u) => (/^https?:\/\//i.test((u || "").trim()) ? (u || "").trim() : "");
+const safeEmail = (e) => (/^[^\s@,<>"]+@[^\s@,<>"]+\.[^\s@,<>"]+$/.test((e || "").trim()) ? (e || "").trim() : "");
 const KEY = () => localStorage.getItem("dashkey") || "";
 const H = () => ({ "x-dash-key": KEY(), "Content-Type": "application/json" });
 
@@ -68,19 +72,20 @@ function rowEl(x) {
   const tr = document.createElement("tr");
   tr.dataset.id = x.id;
   const c = x.contact || {};
+  const liUrl = safeUrl(c.linkedin), em = safeEmail(c.email);
   const contactHtml = c.linkedin
     ? `<div class="contact__name">${esc(c.name)}</div>
        <div class="contact__title">${esc(c.title)}</div>
        <div class="contact__row">
-         ${c.linkedin ? `<a href="${esc(c.linkedin)}" target="_blank">LinkedIn ↗</a>` : ""}
-         ${c.email ? `<a href="mailto:${esc(c.email)}">${esc(c.email)}</a>` : '<span class="muted">no email</span>'}
+         ${liUrl ? `<a href="${esc(liUrl)}" target="_blank" rel="noopener noreferrer">LinkedIn ↗</a>` : ""}
+         ${em ? `<a href="mailto:${esc(em)}">${esc(em)}</a>` : '<span class="muted">no email</span>'}
        </div>`
     : `<span class="muted">—</span>`;
   const flags = (x.red_flags || []).length ? `<div class="flags">⚠ ${esc(x.red_flags.join("; "))}</div>` : "";
   tr.innerHTML = `
     <td><span class="score ${scoreClass(x.fit_score)}">${x.fit_score ?? "·"}</span></td>
     <td><div class="role">${esc(x.title)}</div><div class="rationale">${esc(x.fit_rationale || "")}</div>${flags}</td>
-    <td>${x.url ? `<a href="${esc(x.url)}" target="_blank">${esc(x.company)} ↗</a>` : esc(x.company)}
+    <td>${safeUrl(x.url) ? `<a href="${esc(safeUrl(x.url))}" target="_blank" rel="noopener noreferrer">${esc(x.company)} ↗</a>` : esc(x.company)}
         <div class="loc">${esc(x.location || "")}</div></td>
     <td><span class="lane">${laneLabel(x.lane)}</span></td>
     <td>${contactHtml}</td>
@@ -227,10 +232,11 @@ async function findContactSearch() {
     LEADS = [lead, ...LEADS.filter((l) => l.id !== lead.id)];  // surface it on the board
     render();
     if (c.linkedin) {
+      const liUrl = safeUrl(c.linkedin), em = safeEmail(c.email);
       $("#find-status").innerHTML =
-        `Found <b>${esc(c.name)}</b> · ${esc(c.title)} · ` +
-        `<a href="${esc(c.linkedin)}" target="_blank">LinkedIn ↗</a>` +
-        (c.email ? ` · <a href="mailto:${esc(c.email)}">${esc(c.email)}</a>` : "");
+        `Found <b>${esc(c.name)}</b> · ${esc(c.title)} ` +
+        (liUrl ? `· <a href="${esc(liUrl)}" target="_blank" rel="noopener noreferrer">LinkedIn ↗</a>` : "") +
+        (em ? ` · <a href="mailto:${esc(em)}">${esc(em)}</a>` : "");
       toast(`Found ${c.name} · ${cr} credit`);
     } else {
       $("#find-status").textContent = `No contact found for ${company} (saved to board). 0 credits.`;

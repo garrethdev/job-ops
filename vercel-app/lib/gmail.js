@@ -32,10 +32,17 @@ function b64url(s) {
   return Buffer.from(s, "utf-8").toString("base64").replace(/\+/g, "-").replace(/\//g, "_").replace(/=+$/, "");
 }
 
+// Strip CR/LF from any value going into a header to prevent header injection
+// (e.g. a crafted contact email adding a hidden Bcc). Only emit a To: header if
+// the address looks like a plausible single email address.
+const oneLine = (s) => String(s || "").replace(/[\r\n]+/g, " ").trim();
+const looksLikeEmail = (s) => /^[^\s@,<>]+@[^\s@,<>]+\.[^\s@,<>]+$/.test(oneLine(s));
+
 function mime({ to, subject, body }) {
+  const safeTo = looksLikeEmail(to) ? oneLine(to) : "";
   const lines = [
-    to ? `To: ${to}` : null,
-    `Subject: ${subject.replace(/[\r\n]+/g, " ")}`,
+    safeTo ? `To: ${safeTo}` : null,
+    `Subject: ${oneLine(subject)}`,
     'Content-Type: text/plain; charset="UTF-8"',
     "MIME-Version: 1.0",
     "",
@@ -44,31 +51,53 @@ function mime({ to, subject, body }) {
   return lines.join("\r\n");
 }
 
+// Case-insensitive lookup; if create races and 409s, re-fetch and find it.
 async function ensureLabel(token, name) {
+  const target = name.toLowerCase();
   const { labels = [] } = await gfetch(token, "/labels");
-  const found = labels.find((l) => l.name === name);
+  const found = labels.find((l) => (l.name || "").toLowerCase() === target);
   if (found) return found.id;
-  const made = await gfetch(token, "/labels", {
-    method: "POST",
-    body: JSON.stringify({ name, labelListVisibility: "labelShow", messageListVisibility: "show" }),
-  });
-  return made.id;
+  try {
+    const made = await gfetch(token, "/labels", {
+      method: "POST",
+      body: JSON.stringify({ name, labelListVisibility: "labelShow", messageListVisibility: "show" }),
+    });
+    return made.id;
+  } catch (e) {
+    const { labels: again = [] } = await gfetch(token, "/labels");
+    const re = again.find((l) => (l.name || "").toLowerCase() === target);
+    if (re) return re.id;
+    throw e;
+  }
 }
 
-/** Create a labeled draft. Returns {draftId, messageId, label}. */
+/** Create a labeled draft. Returns {draftId, messageId, label, labeled}.
+ *  Label the draft AFTER ensuring the label exists; a labeling failure never
+ *  fails the whole request (the draft is already the valuable artifact). */
 export async function createLabeledDraft({ to, subject, body }) {
   const token = await accessToken();
+  let labelId = null;
+  try {
+    labelId = await ensureLabel(token, OUTREACH_LABEL);
+  } catch (e) {
+    labelId = null; // proceed unlabeled rather than orphaning a draft
+  }
   const draft = await gfetch(token, "/drafts", {
     method: "POST",
     body: JSON.stringify({ message: { raw: b64url(mime({ to, subject, body })) } }),
   });
   const messageId = draft.message && draft.message.id;
-  const labelId = await ensureLabel(token, OUTREACH_LABEL);
-  if (messageId) {
-    await gfetch(token, `/messages/${messageId}/modify`, {
-      method: "POST",
-      body: JSON.stringify({ addLabelIds: [labelId] }),
-    });
+  let labeled = false;
+  if (messageId && labelId) {
+    try {
+      await gfetch(token, `/messages/${messageId}/modify`, {
+        method: "POST",
+        body: JSON.stringify({ addLabelIds: [labelId] }),
+      });
+      labeled = true;
+    } catch (e) {
+      labeled = false;
+    }
   }
-  return { draftId: draft.id, messageId, label: OUTREACH_LABEL };
+  return { draftId: draft.id, messageId, label: OUTREACH_LABEL, labeled };
 }
