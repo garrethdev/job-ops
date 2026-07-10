@@ -26,6 +26,41 @@
   <span class="topbar__note">Find LinkedIn = 1 Apollo credit · reveals LinkedIn + email</span>
 </header>
 
+<!-- Tabs -->
+<nav class="tabs">
+  <button id="tab-leads" class="tab tab--active" onclick="showTab('leads')">Leads</button>
+  <button id="tab-outreach" class="tab" onclick="showTab('outreach')">Outreach</button>
+</nav>
+
+<!-- Outreach tab -->
+<section id="view-outreach" hidden>
+  <div class="outreach">
+    <div class="outreach__card">
+      <h2 class="outreach__title">Draft an outreach email</h2>
+      <p class="outreach__hint">Pick a lead. The email is written in your voice and saved to your
+        Gmail <b>Drafts</b> under the <b>Sendouts</b> label — nothing is sent.</p>
+      <label class="outreach__field">Lead
+        <select id="o-lead" class="input input--wide"></select>
+      </label>
+      <label class="outreach__field">Extra context (optional)
+        <textarea id="o-context" class="outreach__context" placeholder="Anything to work in — e.g. 'mention I've run D2C food brands' or 'keep it under 80 words'"></textarea>
+      </label>
+      <button id="o-btn" class="btn btn--primary" onclick="craftDraft()">✍️ Craft draft in Gmail</button>
+      <span id="o-status" class="outreach__status"></span>
+    </div>
+    <div id="o-preview" class="outreach__card outreach__preview" hidden>
+      <div class="outreach__preview-head">
+        <span class="badge ok">saved to Drafts · Sendouts</span>
+        <span id="o-to" class="muted"></span>
+      </div>
+      <div id="o-subject" class="outreach__subject"></div>
+      <pre id="o-body" class="outreach__body"></pre>
+    </div>
+  </div>
+</section>
+
+<!-- Leads tab -->
+<section id="view-leads">
 <!-- Find a contact -->
 <div class="finder">
   <span class="finder__label">Find a contact</span>
@@ -87,6 +122,7 @@
   </table>
 </div>
 <div id="empty" class="empty" hidden>No leads match.</div>
+</section>
 
 <div id="toast" class="toast"></div>
 

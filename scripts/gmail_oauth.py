@@ -26,7 +26,9 @@ ROOT = Path(__file__).resolve().parent.parent
 sys.path.insert(0, str(ROOT))
 import core.config  # noqa: E402,F401  (importing triggers .env auto-load)
 
-SCOPE = "https://www.googleapis.com/auth/gmail.readonly"
+# gmail.modify = read + drafts + labels (everything except permanent delete).
+# Needed by the Outreach tab, which creates labeled drafts in the inbox.
+SCOPE = "https://www.googleapis.com/auth/gmail.modify"
 AUTH_URL = "https://accounts.google.com/o/oauth2/v2/auth"
 TOKEN_URL = "https://oauth2.googleapis.com/token"
 PORT = 8799

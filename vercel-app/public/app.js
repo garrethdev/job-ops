@@ -88,10 +88,12 @@ function rowEl(x) {
     <td><div class="acts">
       <button class="btn btn--primary act-li">${c.linkedin ? "✓ LinkedIn" : "🔗 Find LinkedIn"}</button>
       <button class="btn act-em">✉ Email</button>
+      <button class="btn act-draft" title="draft outreach email in your voice">✍️ Draft</button>
       <button class="btn btn--danger act-rej" title="reject (hides it, remembers your no)">🗑</button>
     </div></td>`;
   tr.querySelector(".act-li").onclick = () => enrich(x.id, tr);
   tr.querySelector(".act-em").onclick = () => findEmail(x.id, tr);
+  tr.querySelector(".act-draft").onclick = () => draftFromRow(x.id);
   tr.querySelector(".act-rej").onclick = () => reject(x.id, tr);
   tr.querySelector(".notes__disp").onclick = (e) => editNotes(x, e.currentTarget);
   return tr;
@@ -149,6 +151,65 @@ function editNotes(x, disp) {
     restore();
   };
   td.querySelector(".act-cancel").onclick = restore;
+}
+
+/* --- tabs ----------------------------------------------------------------- */
+function showTab(name) {
+  const leads = name === "leads";
+  $("#view-leads").hidden = !leads;
+  $("#view-outreach").hidden = leads;
+  $("#tab-leads").classList.toggle("tab--active", leads);
+  $("#tab-outreach").classList.toggle("tab--active", !leads);
+  if (!leads) fillLeadPicker();
+}
+
+/* --- outreach: craft an email in Garreth's voice -> Gmail draft ----------- */
+function fillLeadPicker(selectedId) {
+  const sel = $("#o-lead");
+  const current = selectedId || sel.value;
+  sel.innerHTML = "";
+  const sorted = [...LEADS].sort((a, b) => (b.fit_score || 0) - (a.fit_score || 0));
+  for (const l of sorted) {
+    const opt = document.createElement("option");
+    const who = l.contact && l.contact.name ? ` · ${l.contact.name}` : "";
+    opt.value = l.id;
+    opt.textContent = `[${l.fit_score ?? "·"}] ${l.title} — ${l.company}${who}`;
+    sel.appendChild(opt);
+  }
+  if (current && LEADS.some((l) => l.id === current)) sel.value = current;
+}
+
+function draftFromRow(id) {
+  showTab("outreach");
+  fillLeadPicker(id);
+  $("#o-context").focus();
+}
+
+async function craftDraft() {
+  const id = $("#o-lead").value;
+  if (!id) { toast("Pick a lead first."); return; }
+  const btn = $("#o-btn"), old = btn.textContent;
+  btn.disabled = true; btn.textContent = "⏳ writing in your voice…";
+  $("#o-status").textContent = "Crafting the email and saving to Gmail Drafts…";
+  $("#o-preview").hidden = true;
+  try {
+    const d = await (await api(`/api/draft?id=${encodeURIComponent(id)}`, {
+      method: "POST", body: JSON.stringify({ context: $("#o-context").value }),
+    })).json();
+    if (d.error) { $("#o-status").textContent = "Failed: " + d.error; return; }
+    const lead = LEADS.find((l) => l.id === id);
+    if (lead && d.lead) Object.assign(lead, d.lead);
+    $("#o-subject").textContent = d.email.subject;
+    $("#o-body").textContent = d.email.body;
+    $("#o-to").textContent = d.to.startsWith("(") ? d.to : "To: " + d.to;
+    $("#o-preview").hidden = false;
+    $("#o-status").textContent = "Done — it's in your Gmail Drafts under “Sendouts”.";
+    toast("Draft saved to Gmail (Sendouts).");
+  } catch (e) {
+    $("#o-status").textContent = "Request failed.";
+  } finally {
+    btn.disabled = false; btn.textContent = old;
+  }
 }
 
 /* --- find a contact (ad-hoc company lookup) ------------------------------ */
