@@ -26,6 +26,15 @@ export const LANE_LABELS = {
 export const laneLabel = (l) => LANE_LABELS[l] || l || "—";
 export const scoreClass = (s) => (s >= 8 ? "s-hi" : s >= 6 ? "s-mid" : "s-lo");
 
+// Format an ISO timestamp as "Jul 10, 2026" (UTC, so it's deterministic). "" for empty/invalid.
+const _MONTHS = ["Jan", "Feb", "Mar", "Apr", "May", "Jun", "Jul", "Aug", "Sep", "Oct", "Nov", "Dec"];
+export const fmtDate = (iso) => {
+  if (!iso) return "";
+  const d = new Date(iso);
+  if (isNaN(d.getTime())) return "";
+  return `${_MONTHS[d.getUTCMonth()]} ${d.getUTCDate()}, ${d.getUTCFullYear()}`;
+};
+
 // Up-to-2-letter initials for a contact avatar. "" / junk -> "?".
 export const initials = (name) => {
   const parts = String(name || "").trim().split(/\s+/).filter(Boolean);

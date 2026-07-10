@@ -22,7 +22,8 @@ from core import store  # noqa: E402
 TABLE = "jobops_leads"
 COLS = ["id", "schema_version", "lane", "source", "source_detail", "title", "company",
         "url", "location", "comp", "posted", "first_seen", "last_seen", "fit_score",
-        "fit_rationale", "red_flags", "contact", "notes", "status", "snippet"]
+        "fit_rationale", "red_flags", "contact", "notes", "status", "snippet",
+        "outreached_at"]
 
 
 def _headers():

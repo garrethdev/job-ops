@@ -1,6 +1,6 @@
 import { test } from "node:test";
 import assert from "node:assert/strict";
-import { esc, safeUrl, safeEmail, laneLabel, scoreClass, initials } from "../public/format.js";
+import { esc, safeUrl, safeEmail, laneLabel, scoreClass, initials, fmtDate } from "../public/format.js";
 import { looksLikeEmail } from "../lib/mime.js";
 
 test("safeUrl blocks dangerous schemes, keeps http(s)", () => {
@@ -46,6 +46,14 @@ test("initials for avatars", () => {
   assert.equal(initials("  jane   q   doe "), "JD"); // first + last
   assert.equal(initials(""), "?");
   assert.equal(initials(null), "?");
+});
+
+test("fmtDate formats ISO -> 'Mon D, YYYY' (UTC), empty for junk", () => {
+  assert.equal(fmtDate("2026-07-10T14:04:00Z"), "Jul 10, 2026");
+  assert.equal(fmtDate("2026-01-01T00:00:00Z"), "Jan 1, 2026");
+  assert.equal(fmtDate(""), "");
+  assert.equal(fmtDate(null), "");
+  assert.equal(fmtDate("not-a-date"), "");
 });
 
 test("scoreClass boundaries at 8 and 6", () => {

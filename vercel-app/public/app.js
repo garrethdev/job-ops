@@ -2,7 +2,7 @@
    Talks only to /api/* (password in x-dash-key header). No secrets here.
    Pure helpers live in format.js so they can be unit-tested. */
 
-import { esc, safeUrl, safeEmail, laneLabel, scoreClass, initials } from "./format.js";
+import { esc, safeUrl, safeEmail, laneLabel, scoreClass, initials, fmtDate } from "./format.js";
 
 let LEADS = [];
 const $ = (s) => document.querySelector(s);
@@ -85,6 +85,9 @@ function rowEl(x) {
     <td><span class="lane lane--${esc(x.lane || "none")}">${laneLabel(x.lane)}</span></td>
     <td>${contactHtml}</td>
     <td><div class="notes__disp" title="click to edit">${esc(x.notes) || '<span class="muted">+ note</span>'}</div></td>
+    <td class="reached">${x.outreached_at
+      ? `<button class="btn reached--on act-reach" title="reached out ${esc(fmtDate(x.outreached_at))} — click to undo">✓ ${esc(fmtDate(x.outreached_at))}</button>`
+      : `<button class="btn act-reach" title="mark that you've reached out (saves today's date)">Mark reached out</button>`}</td>
     <td><div class="acts">
       <button class="btn btn--primary act-li">${c.linkedin ? "✓ LinkedIn" : "🔗 Find LinkedIn"}</button>
       <button class="btn act-em">✉ Email</button>
@@ -94,6 +97,7 @@ function rowEl(x) {
   tr.querySelector(".act-li").onclick = () => enrich(x.id, tr);
   tr.querySelector(".act-em").onclick = () => findEmail(x.id, tr);
   tr.querySelector(".act-draft").onclick = () => draftFromRow(x.id);
+  tr.querySelector(".act-reach").onclick = () => toggleOutreach(x.id, tr);
   tr.querySelector(".act-rej").onclick = () => reject(x.id, tr);
   tr.querySelector(".notes__disp").onclick = (e) => editNotes(x, e.currentTarget);
   return tr;
@@ -129,6 +133,20 @@ async function reject(id, tr) {
     LEADS = LEADS.filter((l) => l.id !== id);
     tr.remove(); render(); toast("Rejected.");
   } catch (e) {}
+}
+
+async function toggleOutreach(id, tr) {
+  const lead = LEADS.find((l) => l.id === id);
+  const btn = tr.querySelector(".act-reach");
+  btn.disabled = true;
+  try {
+    const d = await (await api(`/api/outreach?id=${encodeURIComponent(id)}`, { method: "POST" })).json();
+    Object.assign(lead, d.lead);
+    tr.replaceWith(rowEl(lead));
+    toast(d.lead.outreached_at ? `Marked reached out (${fmtDate(d.lead.outreached_at)}).` : "Unmarked.");
+  } catch (e) {
+    btn.disabled = false;
+  }
 }
 
 function editNotes(x, disp) {

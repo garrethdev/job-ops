@@ -243,6 +243,14 @@ a:hover { color: var(--accent-strong); text-decoration: underline; }
 .btn--danger:hover { border-color: var(--red); color: var(--red); background: var(--red-bg); }
 .acts { display: flex; gap: 6px; flex-wrap: wrap; }
 
+/* reached-out toggle */
+.reached { white-space: nowrap; }
+.reached--on {
+  color: var(--green); background: var(--green-bg); border-color: transparent;
+  font-variant-numeric: tabular-nums;
+}
+.reached--on:hover { background: #d9f0e4; border-color: var(--green); color: var(--green); }
+
 /* 9) Notes ----------------------------------------------------------------- */
 .notes__disp { font-size: 12px; color: var(--text-muted); max-width: 220px; white-space: pre-wrap; cursor: text; }
 .notes__disp:hover { color: var(--text); }
