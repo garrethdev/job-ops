@@ -16,6 +16,17 @@ export async function listLeads() {
   return r.json();
 }
 
+export async function insertLead(row) {
+  const r = await fetch(`${URL}/rest/v1/jobops_leads`, {
+    method: "POST",
+    headers: headers({ Prefer: "return=representation,resolution=merge-duplicates" }),
+    body: JSON.stringify([row]),
+  });
+  if (!r.ok) throw new Error(`supabase insert ${r.status}: ${await r.text()}`);
+  const a = await r.json();
+  return a[0] || row;
+}
+
 export async function getLead(id) {
   const r = await fetch(`${URL}/rest/v1/jobops_leads?id=eq.${encodeURIComponent(id)}&select=*`, { headers: headers() });
   const a = await r.json();

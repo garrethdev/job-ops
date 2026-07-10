@@ -10,7 +10,7 @@ const H = () => ({ "x-dash-key": KEY(), "Content-Type": "application/json" });
 const LANE_LABELS = {
   "gtm-engineer": "GTM Engineer", "software-architect": "Software Architect",
   "ai-consultant": "AI Consultant", "ai-video-editor": "AI Video Editor",
-  "product-lead": "Product Lead",
+  "product-lead": "Product Lead", "marketing-lead": "Marketing Lead", "lookup": "Contact lookup",
 };
 const laneLabel = (l) => LANE_LABELS[l] || l || "—";
 const scoreClass = (s) => (s >= 8 ? "s-hi" : s >= 6 ? "s-mid" : "s-lo");
@@ -149,6 +149,37 @@ function editNotes(x, disp) {
     restore();
   };
   td.querySelector(".act-cancel").onclick = restore;
+}
+
+/* --- find a contact (ad-hoc company lookup) ------------------------------ */
+async function findContactSearch() {
+  const company = $("#find-company").value.trim();
+  if (!company) { toast("Enter a company."); return; }
+  const role = $("#find-role").value.trim();
+  const lane = $("#find-lane").value;
+  const btn = $("#find-btn"), old = btn.textContent;
+  btn.disabled = true; btn.textContent = "⏳ finding…";
+  $("#find-status").textContent = "Searching Apollo…";
+  try {
+    const d = await (await api("/api/find", { method: "POST", body: JSON.stringify({ company, role, lane }) })).json();
+    const lead = d.lead, c = lead.contact || {}, cr = (d.meta && d.meta.credits_used) || 0;
+    LEADS = [lead, ...LEADS.filter((l) => l.id !== lead.id)];  // surface it on the board
+    render();
+    if (c.linkedin) {
+      $("#find-status").innerHTML =
+        `Found <b>${esc(c.name)}</b> · ${esc(c.title)} · ` +
+        `<a href="${esc(c.linkedin)}" target="_blank">LinkedIn ↗</a>` +
+        (c.email ? ` · <a href="mailto:${esc(c.email)}">${esc(c.email)}</a>` : "");
+      toast(`Found ${c.name} · ${cr} credit`);
+    } else {
+      $("#find-status").textContent = `No contact found for ${company} (saved to board). 0 credits.`;
+    }
+    $("#find-company").value = ""; $("#find-role").value = "";
+  } catch (e) {
+    $("#find-status").textContent = "Search failed.";
+  } finally {
+    btn.disabled = false; btn.textContent = old;
+  }
 }
 
 /* --- boot ---------------------------------------------------------------- */

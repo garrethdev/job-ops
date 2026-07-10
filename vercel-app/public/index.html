@@ -26,6 +26,22 @@
   <span class="topbar__note">Find LinkedIn = 1 Apollo credit · reveals LinkedIn + email</span>
 </header>
 
+<!-- Find a contact -->
+<div class="finder">
+  <span class="finder__label">Find a contact</span>
+  <input id="find-company" class="input" type="text" placeholder="Company (required)">
+  <input id="find-role" class="input" type="text" placeholder="Role / title (optional)">
+  <select id="find-lane" class="input">
+    <option value="">Auto (leadership)</option>
+    <option value="ai-consultant">AI Consultant</option>
+    <option value="software-architect">Software Architect</option>
+    <option value="gtm-engineer">GTM Engineer</option>
+    <option value="ai-video-editor">AI Video Editor</option>
+  </select>
+  <button id="find-btn" class="btn btn--primary" onclick="findContactSearch()">Find contact</button>
+  <span id="find-status" class="finder__status"></span>
+</div>
+
 <!-- Toolbar -->
 <div class="toolbar">
   <label class="field">Lane
@@ -36,6 +52,8 @@
       <option value="gtm-engineer">GTM Engineer</option>
       <option value="ai-video-editor">AI Video Editor</option>
       <option value="product-lead">Product Lead</option>
+      <option value="marketing-lead">Marketing Lead</option>
+      <option value="lookup">Contact lookup</option>
     </select>
   </label>
   <label class="field">Min fit
