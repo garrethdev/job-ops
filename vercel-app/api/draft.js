@@ -1,6 +1,6 @@
 import { requireAuth } from "../lib/auth.js";
 import { getLead, patchLead } from "../lib/supa.js";
-import { createLabeledDraft, OUTREACH_LABEL } from "../lib/gmail.js";
+import { createLabeledDraft } from "../lib/gmail.js";
 
 // POST /api/draft?id=<leadId>  body: {subject, body, to?}
 // Saves the (edited) email as a labeled Gmail draft and moves the lead to
@@ -22,10 +22,13 @@ export default async function handler(req, res) {
     const to = String(b.to || (lead.contact && lead.contact.email) || "").trim();
     const draft = await createLabeledDraft({ to, subject, body });
 
-    const note = ((lead.notes || "") + `\n[draft] "${subject}" -> Gmail Drafts (${OUTREACH_LABEL})`).trim();
-    const patch = { notes: note };
-    if (lead.stage === "new") patch.stage = "wip"; // prepared outreach -> Working
-    const updated = await patchLead(id, patch);
+    // Prepared outreach -> Working. Co-write outreached_at:null so we can never
+    // strand a (wip, outreached_at-set) pair if a stage change interleaved.
+    // Notes are left untouched (no provenance clutter, no lost-update on notes).
+    let updated = lead;
+    if (lead.stage === "new") {
+      updated = await patchLead(id, { stage: "wip", outreached_at: null });
+    }
 
     res.json({ lead: updated, draft, to: to || "(no email on lead — fill in To: in Gmail)" });
   } catch (e) {

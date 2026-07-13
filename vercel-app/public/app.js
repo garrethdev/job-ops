@@ -215,6 +215,7 @@ function draftFromRow(id) {
   showTab("outreach");
   fillLeadPicker(id);
   $("#o-editor").hidden = true;      // clear any stale draft from another lead
+  delete $("#o-editor").dataset.leadId;
   $("#o-status").textContent = "";
   $("#o-context").focus();
 }
@@ -231,7 +232,11 @@ async function craftEmail() {
     const d = await (await api(`/api/craft?id=${encodeURIComponent(id)}`, {
       method: "POST", body: JSON.stringify({ context: $("#o-context").value }),
     })).json();
+    // If the user switched leads while this was in flight, discard the stale
+    // result — otherwise we'd show lead A's email while the picker reads lead B.
+    if ($("#o-lead").value !== id) return;
     if (d.error) { $("#o-status").textContent = "Failed: " + d.error; return; }
+    $("#o-editor").dataset.leadId = id;   // the lead this draft actually belongs to
     $("#o-to").value = d.to || "";
     $("#o-subject").value = d.email.subject || "";
     $("#o-body").value = d.email.body || "";
@@ -248,7 +253,10 @@ async function craftEmail() {
 
 // Step 2: save the edited email into Gmail Drafts (labeled), move lead -> Working.
 async function saveDraft() {
-  const id = $("#o-lead").value;
+  // Save against the lead the visible content was crafted for, not whatever the
+  // picker currently reads (guards against a lead switch after crafting).
+  const id = $("#o-editor").dataset.leadId;
+  if (!id) { $("#o-save-status").textContent = "Craft the email first."; return; }
   const subject = $("#o-subject").value.trim();
   const body = $("#o-body").value.trim();
   if (!subject || !body) { $("#o-save-status").textContent = "Add a subject and body first."; return; }
@@ -339,7 +347,8 @@ async function findContactSearch() {
 ["#f-lane", "#f-min", "#f-enriched", "#f-q"].forEach((s) => $(s).addEventListener("input", render));
 $("#pw") && $("#pw").addEventListener("keydown", (e) => { if (e.key === "Enter") submitPw(); });
 $("#o-lead") && $("#o-lead").addEventListener("change", () => {
-  $("#o-editor").hidden = true; $("#o-status").textContent = ""; // stale draft for another lead
+  $("#o-editor").hidden = true; delete $("#o-editor").dataset.leadId;
+  $("#o-status").textContent = ""; // stale draft for another lead
 });
 $("#d-close").addEventListener("click", closeDetail);
 $("#d-backdrop").addEventListener("click", closeDetail);
