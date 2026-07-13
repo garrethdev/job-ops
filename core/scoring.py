@@ -63,12 +63,17 @@ def _count_hits(text: str, words: List[str]) -> int:
 
 def score_heuristic(record: Dict[str, Any]) -> Dict[str, Any]:
     text = _text_of(record)
+    ignore_loc = bool(record.get("ignore_location"))
     per_lane = {}
     for lane in LANES:
         kw = load_keywords(lane)
         match_hits = _count_hits(text, kw["match"])
         boost_hits = _count_hits(text, kw["boost"])
-        dealbreakers = [w for w in kw["deal_breakers"] if w and _pattern(w).search(text)]
+        dealbreakers = [
+            w for w in kw["deal_breakers"]
+            if w and _pattern(w).search(text)
+            and not (ignore_loc and w in _LOCATION_DEALBREAKERS)
+        ]
         per_lane[lane] = (match_hits, boost_hits, dealbreakers)
 
     # Pick the lane with the most match hits; ties resolve to 'architecture'.
@@ -98,9 +103,20 @@ def score_heuristic(record: Dict[str, Any]) -> Dict[str, Any]:
     }
 
 
+# The remote/hybrid gate is the DEFAULT. A source may set ignore_location:true
+# (e.g. randstad-ai) so its roles are judged purely on role-fit; the candidate
+# vets location themselves for those. Every other source keeps the gate.
+_LOCATION_HEADER = "The candidate works REMOTE or HYBRID only.\n"
+_LOCATION_RULE = ("- REMOTE or HYBRID only: if the posting is on-site-only or requires "
+                  "relocation, cap fit_score at 3 and add a red flag.\n")
+# Deal-breaker keywords that are purely about location (skipped when ignore_location).
+_LOCATION_DEALBREAKERS = {
+    "on-site only", "onsite only", "on-site", "onsite", "in-office", "in office",
+    "relocation required", "relocation",
+}
+
 _LLM_PROMPT = """You triage a job/contract opportunity for a candidate targeting FOUR role types.
-The candidate works REMOTE or HYBRID only.
-- "gtm-engineer": go-to-market / growth / forward-deployed / solutions / sales engineer; automates the revenue engine (CRM, integrations, sales/marketing automation)
+{location_header}- "gtm-engineer": go-to-market / growth / forward-deployed / solutions / sales engineer; automates the revenue engine (CRM, integrations, sales/marketing automation)
 - "software-architect": software/solutions architect, staff/principal engineer, system design, distributed systems, cloud/platform architecture
 - "ai-consultant": AI / GenAI / LLM consultant, advisor, strategist, or implementation/transformation lead
 - "ai-video-editor": AI video editor, generative video, AI-assisted editing / captioning / render pipelines
@@ -111,8 +127,7 @@ Respond with ONLY a JSON object:
 Rules:
 - Pick the single best-fitting role.
 - fit_score: 1-3 = weak/neither, 4-6 = plausible, 7-10 = strong. Be strict.
-- REMOTE or HYBRID only: if the posting is on-site-only or requires relocation, cap fit_score at 3 and add a red flag.
-
+{location_rule}
 POSTING:
 title: {title}
 company: {company}
@@ -172,7 +187,10 @@ def _call_llm(prompt: str):
 
 
 def score_llm(record: Dict[str, Any]) -> Dict[str, Any]:
+    ignore_loc = bool(record.get("ignore_location"))
     prompt = _LLM_PROMPT.format(
+        location_header="" if ignore_loc else _LOCATION_HEADER,
+        location_rule="" if ignore_loc else _LOCATION_RULE,
         title=record.get("title", ""),
         company=record.get("company", ""),
         location=record.get("location", ""),

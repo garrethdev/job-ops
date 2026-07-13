@@ -121,3 +121,20 @@ def test_llm_backend_selection():
 
 if __name__ == "__main__":
     raise SystemExit(tests._bootstrap.run_module(dict(globals())))
+
+
+def test_ignore_location_skips_location_dealbreaker():
+    # Default: an on-site-only posting trips the location deal-breaker red flag.
+    base = _rec("Solutions Architect", "on-site only, in-office, dallas")
+    default = score_heuristic(dict(base))
+    assert any("on-site only" in f for f in default["red_flags"])
+    # ignore_location: the SAME posting no longer flags location...
+    ig = score_heuristic(dict(base, ignore_location=True))
+    assert not any("on-site" in f for f in ig["red_flags"])
+
+
+def test_ignore_location_only_affects_location_dealbreakers():
+    # A non-location deal-breaker (e.g. 'unpaid') still fires under ignore_location.
+    r = _rec("Unpaid Intern Architect", "unpaid intern on-site only")
+    ig = score_heuristic(dict(r, ignore_location=True))
+    assert any("unpaid" in f or "intern" in f for f in ig["red_flags"])

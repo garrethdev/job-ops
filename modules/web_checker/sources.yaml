@@ -107,6 +107,7 @@ sources:
     source: marketplace
     limit: 30
     url: "https://www.gofractional.com/jobs"
+    fetch_detail: true          # pull the full posting for kept roles (rich click-in)
     prompt: "Extract every fractional role/job listing on this page: the job title, the hiring company name, the location, and the absolute URL to the posting."
     keywords:
       - fractional
@@ -133,6 +134,8 @@ sources:
     source: board
     limit: 30
     url: "https://www.randstadusa.com/jobs/q-ai/t-contract,temp-to-perm/"
+    ignore_location: true       # judge on role-fit only; Garreth vets location himself
+    fetch_detail: true          # pull the full posting for kept roles (rich click-in)
     prompt: "Extract every job listing on this page: the job title, the hiring company (employer) name, the location, and the absolute URL to the job posting detail page."
     keywords:
       - ai

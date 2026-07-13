@@ -16,6 +16,23 @@ from core.schema import new_record
 from core.scoring import apply_scores
 from modules.web_checker.adapters import get_adapter
 from modules.web_checker.config_loader import enabled_adapters, load_sources
+from modules.web_checker.detail import fetch_description
+
+# Only fetch full detail pages for roles that clear this fit (keeps credits bounded).
+DETAIL_FIT_MIN = 6
+
+
+def _enrich_details(records: List[Dict[str, Any]]) -> None:
+    """For fetch_detail sources: replace the thin card snippet with the full
+    posting for KEPT roles. Then strip the transient scoring/enrichment flags so
+    they never persist to the store."""
+    for r in records:
+        if r.get("fetch_detail") and r.get("url") and r.get("fit_score", 0) >= DETAIL_FIT_MIN:
+            desc = fetch_description(r["url"])
+            if desc:
+                r["snippet"] = desc
+        r.pop("fetch_detail", None)
+        r.pop("ignore_location", None)
 
 
 @dataclass
@@ -42,6 +59,11 @@ def _build_records(entry: Dict[str, Any]) -> List[Dict[str, Any]]:
             source_detail=p.get("source_detail", entry.get("name", "")),
             snippet=p.get("snippet", ""),  # scoring signal, now a schema field
         )
+        # Transient per-source scoring/enrichment hints (stripped before store).
+        if entry.get("ignore_location"):
+            rec["ignore_location"] = True
+        if entry.get("fetch_detail"):
+            rec["fetch_detail"] = True
         records.append(rec)
     return records
 
@@ -73,6 +95,7 @@ def run(
 
     result.fetched = len(collected)
     apply_scores(collected, use_llm=use_llm)
+    _enrich_details(collected)
     result.records = collected
 
     if dry_run:
