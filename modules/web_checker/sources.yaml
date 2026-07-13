@@ -127,5 +127,27 @@ sources:
       - consultant
       - operations
 
+  - name: randstad-ai
+    adapter: firecrawl
+    enabled: true
+    source: board
+    limit: 30
+    url: "https://www.randstadusa.com/jobs/q-ai/t-contract,temp-to-perm/"
+    prompt: "Extract every job listing on this page: the job title, the hiring company (employer) name, the location, and the absolute URL to the job posting detail page."
+    keywords:
+      - ai
+      - ml
+      - engineer
+      - architect
+      - developer
+      - data
+      - scientist
+      - platform
+      - solutions
+      - consultant
+      - gtm
+      - growth
+      - product
+
 # LinkedIn/Upwork route through email alerts (Module A), not naive scraping —
 # see GAMEPLAN §3.
