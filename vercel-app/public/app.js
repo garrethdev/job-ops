@@ -4,6 +4,16 @@
 
 import { esc, safeUrl, safeEmail, laneLabel, scoreClass, initials, fmtDate, stripTag } from "./format.js";
 
+const STAGE_LABEL = { new: "New", wip: "Working", reached_out: "Reached out" };
+const STAGES = ["new", "wip", "reached_out"];
+function stageOf(x) { return x.stage || (x.outreached_at ? "reached_out" : "new"); }
+function stageCell(x) {
+  const cur = stageOf(x);
+  const opts = STAGES.map((s) => `<option value="${s}"${s === cur ? " selected" : ""}>${STAGE_LABEL[s]}</option>`).join("");
+  const date = cur === "reached_out" && x.outreached_at ? `<div class="stage-date">${esc(fmtDate(x.outreached_at))}</div>` : "";
+  return `<select class="stage-sel stage-sel--${cur} act-stage" title="set stage">${opts}</select>${date}`;
+}
+
 let LEADS = [];
 const $ = (s) => document.querySelector(s);
 const KEY = () => localStorage.getItem("dashkey") || "";
@@ -85,9 +95,7 @@ function rowEl(x) {
     <td><span class="lane lane--${esc(x.lane || "none")}">${laneLabel(x.lane)}</span></td>
     <td>${contactHtml}</td>
     <td><div class="notes__disp" title="click to edit">${esc(x.notes) || '<span class="muted">+ note</span>'}</div></td>
-    <td class="reached">${x.outreached_at
-      ? `<button class="btn reached--on act-reach" title="reached out ${esc(fmtDate(x.outreached_at))} — click to undo">✓ ${esc(fmtDate(x.outreached_at))}</button>`
-      : `<button class="btn act-reach" title="mark that you've reached out (saves today's date)">Mark reached out</button>`}</td>
+    <td class="stage">${stageCell(x)}</td>
     <td><div class="acts">
       <button class="btn btn--primary act-li">${c.linkedin ? "✓ LinkedIn" : "🔗 Find LinkedIn"}</button>
       <button class="btn act-em">✉ Email</button>
@@ -97,7 +105,7 @@ function rowEl(x) {
   tr.querySelector(".act-li").onclick = () => enrich(x.id, tr);
   tr.querySelector(".act-em").onclick = () => findEmail(x.id, tr);
   tr.querySelector(".act-draft").onclick = () => draftFromRow(x.id);
-  tr.querySelector(".act-reach").onclick = () => toggleOutreach(x.id, tr);
+  tr.querySelector(".act-stage").onchange = (e) => setStage(x.id, e.target.value, tr);
   tr.querySelector(".act-rej").onclick = () => reject(x.id, tr);
   tr.querySelector(".role--link").onclick = () => openDetail(x.id);
   tr.querySelector(".notes__disp").onclick = (e) => editNotes(x, e.currentTarget);
@@ -136,17 +144,22 @@ async function reject(id, tr) {
   } catch (e) {}
 }
 
-async function toggleOutreach(id, tr) {
+async function setStage(id, stage, tr) {
   const lead = LEADS.find((l) => l.id === id);
-  const btn = tr.querySelector(".act-reach");
-  btn.disabled = true;
+  const sel = tr.querySelector(".act-stage");
+  const prev = stageOf(lead);
+  sel.disabled = true;
   try {
-    const d = await (await api(`/api/outreach?id=${encodeURIComponent(id)}`, { method: "POST" })).json();
+    const d = await (await api(`/api/stage?id=${encodeURIComponent(id)}`, {
+      method: "POST", body: JSON.stringify({ stage }),
+    })).json();
+    if (d.error) throw new Error(d.error);
     Object.assign(lead, d.lead);
     tr.replaceWith(rowEl(lead));
-    toast(d.lead.outreached_at ? `Marked reached out (${fmtDate(d.lead.outreached_at)}).` : "Unmarked.");
+    toast(`Stage → ${STAGE_LABEL[stage]}${stage === "reached_out" && d.lead.outreached_at ? " (" + fmtDate(d.lead.outreached_at) + ")" : ""}.`);
   } catch (e) {
-    btn.disabled = false;
+    sel.value = prev; sel.disabled = false;
+    toast("Couldn’t update stage.");
   }
 }
 
@@ -201,31 +214,58 @@ function fillLeadPicker(selectedId) {
 function draftFromRow(id) {
   showTab("outreach");
   fillLeadPicker(id);
+  $("#o-editor").hidden = true;      // clear any stale draft from another lead
+  $("#o-status").textContent = "";
   $("#o-context").focus();
 }
 
-async function craftDraft() {
+// Step 1: LLM writes the email in your voice and drops it into editable fields.
+// Nothing is saved to Gmail yet.
+async function craftEmail() {
   const id = $("#o-lead").value;
   if (!id) { toast("Pick a lead first."); return; }
-  const btn = $("#o-btn"), old = btn.textContent;
+  const btn = $("#o-craft"), old = btn.textContent;
   btn.disabled = true; btn.textContent = "⏳ writing in your voice…";
-  $("#o-status").textContent = "Crafting the email and saving to Gmail Drafts…";
-  $("#o-preview").hidden = true;
+  $("#o-status").textContent = "Writing a first draft you can edit…";
   try {
-    const d = await (await api(`/api/draft?id=${encodeURIComponent(id)}`, {
+    const d = await (await api(`/api/craft?id=${encodeURIComponent(id)}`, {
       method: "POST", body: JSON.stringify({ context: $("#o-context").value }),
     })).json();
     if (d.error) { $("#o-status").textContent = "Failed: " + d.error; return; }
-    const lead = LEADS.find((l) => l.id === id);
-    if (lead && d.lead) Object.assign(lead, d.lead);
-    $("#o-subject").textContent = d.email.subject;
-    $("#o-body").textContent = d.email.body;
-    $("#o-to").textContent = d.to.startsWith("(") ? d.to : "To: " + d.to;
-    $("#o-preview").hidden = false;
-    $("#o-status").textContent = "Done — it's in your Gmail Drafts under “Sendouts”.";
-    toast("Draft saved to Gmail (Sendouts).");
+    $("#o-to").value = d.to || "";
+    $("#o-subject").value = d.email.subject || "";
+    $("#o-body").value = d.email.body || "";
+    $("#o-editor").hidden = false;
+    $("#o-save-status").textContent = "";
+    $("#o-status").textContent = "Draft ready — edit it, then save to Gmail.";
+    $("#o-subject").focus();
   } catch (e) {
     $("#o-status").textContent = "Request failed.";
+  } finally {
+    btn.disabled = false; btn.textContent = old;
+  }
+}
+
+// Step 2: save the edited email into Gmail Drafts (labeled), move lead -> Working.
+async function saveDraft() {
+  const id = $("#o-lead").value;
+  const subject = $("#o-subject").value.trim();
+  const body = $("#o-body").value.trim();
+  if (!subject || !body) { $("#o-save-status").textContent = "Add a subject and body first."; return; }
+  const btn = $("#o-save"), old = btn.textContent;
+  btn.disabled = true; btn.textContent = "⏳ saving…";
+  $("#o-save-status").textContent = "Saving to Gmail Drafts…";
+  try {
+    const d = await (await api(`/api/draft?id=${encodeURIComponent(id)}`, {
+      method: "POST", body: JSON.stringify({ subject, body, to: $("#o-to").value.trim() }),
+    })).json();
+    if (d.error) { $("#o-save-status").textContent = "Failed: " + d.error; return; }
+    const lead = LEADS.find((l) => l.id === id);
+    if (lead && d.lead) { Object.assign(lead, d.lead); render(); }
+    $("#o-save-status").textContent = "Saved — it's in your Gmail Drafts under “Sendouts”.";
+    toast("Draft saved to Gmail (Sendouts). Lead → Working.");
+  } catch (e) {
+    $("#o-save-status").textContent = "Request failed.";
   } finally {
     btn.disabled = false; btn.textContent = old;
   }
@@ -249,7 +289,7 @@ function openDetail(id) {
       </div>
     </div>
     <div class="d-meta">${meta || '<span class="d-tag">no location/comp captured</span>'}
-      ${x.outreached_at ? `<span class="d-tag" style="color:var(--green)">✓ reached out ${esc(fmtDate(x.outreached_at))}</span>` : ""}
+      <span class="d-tag stage-sel--${stageOf(x)}" style="font-weight:600">${STAGE_LABEL[stageOf(x)]}${stageOf(x) === "reached_out" && x.outreached_at ? " · " + esc(fmtDate(x.outreached_at)) : ""}</span>
     </div>
     ${url ? `<a class="d-link" href="${esc(url)}" target="_blank" rel="noopener noreferrer">View original posting ↗</a>` : ""}
     ${x.fit_rationale ? `<div class="d-section"><h4>Why it fits</h4><div class="d-rationale">${esc(stripTag(x.fit_rationale))}</div></div>` : ""}
@@ -298,12 +338,15 @@ async function findContactSearch() {
 /* --- boot ---------------------------------------------------------------- */
 ["#f-lane", "#f-min", "#f-enriched", "#f-q"].forEach((s) => $(s).addEventListener("input", render));
 $("#pw") && $("#pw").addEventListener("keydown", (e) => { if (e.key === "Enter") submitPw(); });
+$("#o-lead") && $("#o-lead").addEventListener("change", () => {
+  $("#o-editor").hidden = true; $("#o-status").textContent = ""; // stale draft for another lead
+});
 $("#d-close").addEventListener("click", closeDetail);
 $("#d-backdrop").addEventListener("click", closeDetail);
 document.addEventListener("keydown", (e) => { if (e.key === "Escape") closeDetail(); });
 
 // This file is a module, so top-level functions aren't global. Expose the ones
 // referenced by inline onclick= handlers in index.html.
-Object.assign(window, { submitPw, logout, load, showTab, craftDraft, findContactSearch });
+Object.assign(window, { submitPw, logout, load, showTab, craftEmail, saveDraft, findContactSearch });
 
 load();

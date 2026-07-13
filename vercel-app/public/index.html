@@ -38,24 +38,33 @@
   <div class="outreach">
     <div class="outreach__card">
       <h2 class="outreach__title">Draft an outreach email</h2>
-      <p class="outreach__hint">Pick a lead. The email is written in your voice and saved to your
-        Gmail <b>Drafts</b> under the <b>Sendouts</b> label — nothing is sent.</p>
+      <p class="outreach__hint">Pick a lead and craft the email in your voice. Edit it below,
+        then save it to your Gmail <b>Drafts</b> under <b>Sendouts</b> — nothing is sent.</p>
       <label class="outreach__field">Lead
         <select id="o-lead" class="input input--wide"></select>
       </label>
       <label class="outreach__field">Extra context (optional)
         <textarea id="o-context" class="outreach__context" placeholder="Anything to work in — e.g. 'mention I've run D2C food brands' or 'keep it under 80 words'"></textarea>
       </label>
-      <button id="o-btn" class="btn btn--primary" onclick="craftDraft()">✍️ Craft draft in Gmail</button>
+      <button id="o-craft" class="btn btn--primary" onclick="craftEmail()">✍️ Craft email</button>
       <span id="o-status" class="outreach__status"></span>
     </div>
-    <div id="o-preview" class="outreach__card outreach__preview" hidden>
-      <div class="outreach__preview-head">
-        <span class="badge ok">saved to Drafts · Sendouts</span>
-        <span id="o-to" class="muted"></span>
+    <div id="o-editor" class="outreach__card outreach__editor" hidden>
+      <div class="outreach__editor-head">
+        <span class="badge">Edit before saving</span>
+        <button class="btn btn--ghost btn--sm" onclick="craftEmail()" title="regenerate a fresh version">↻ Re-craft</button>
       </div>
-      <div id="o-subject" class="outreach__subject"></div>
-      <pre id="o-body" class="outreach__body"></pre>
+      <label class="outreach__field">To
+        <input id="o-to" class="input input--wide" placeholder="name@company.com" />
+      </label>
+      <label class="outreach__field">Subject
+        <input id="o-subject" class="input input--wide" />
+      </label>
+      <label class="outreach__field">Body
+        <textarea id="o-body" class="outreach__bodyedit" spellcheck="true"></textarea>
+      </label>
+      <button id="o-save" class="btn btn--primary" onclick="saveDraft()">💾 Save to Gmail Drafts</button>
+      <span id="o-save-status" class="outreach__status"></span>
     </div>
   </div>
 </section>
@@ -116,7 +125,7 @@
         <th>Lane</th>
         <th>Contact</th>
         <th>Notes</th>
-        <th>Reached out</th>
+        <th>Stage</th>
         <th>Actions</th>
       </tr>
     </thead>
