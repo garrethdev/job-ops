@@ -101,5 +101,31 @@ sources:
       - editor
       - platform
 
+  - name: gofractional
+    adapter: firecrawl
+    enabled: true
+    source: marketplace
+    limit: 30
+    url: "https://www.gofractional.com/jobs"
+    prompt: "Extract every fractional role/job listing on this page: the job title, the hiring company name, the location, and the absolute URL to the posting."
+    keywords:
+      - fractional
+      - cto
+      - cmo
+      - coo
+      - product
+      - growth
+      - marketing
+      - revops
+      - sales
+      - gtm
+      - ai
+      - engineer
+      - architect
+      - ecommerce
+      - e-commerce
+      - consultant
+      - operations
+
 # LinkedIn/Upwork route through email alerts (Module A), not naive scraping —
 # see GAMEPLAN §3.
