@@ -39,10 +39,18 @@ jobs:
       - name: Run web-checker
         id: run
         env:
-          # Optional. Absent => free deterministic heuristic scorer (no billed calls).
+          # DeepSeek (OpenRouter) is the scoring engine; Anthropic is fallback,
+          # else free heuristic. Firecrawl powers the JS-rendered / gofractional sources.
+          OPENROUTER_API_KEY: ${{ secrets.OPENROUTER_API_KEY }}
           ANTHROPIC_API_KEY: ${{ secrets.ANTHROPIC_API_KEY }}
           FIRECRAWL_API_KEY: ${{ secrets.FIRECRAWL_API_KEY }}
-        run: python -m modules.web_checker --digest-out digest.md
+        run: python -m modules.web_checker --llm --digest-out digest.md
+
+      - name: Sync new leads to Supabase (dashboard)
+        env:
+          SUPABASE_URL: ${{ secrets.SUPABASE_URL }}
+          SUPABASE_SERVICE_KEY: ${{ secrets.SUPABASE_SERVICE_KEY }}
+        run: python scripts/sync_to_supabase.py
 
       - name: Commit updated store
         run: |

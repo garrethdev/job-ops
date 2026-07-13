@@ -8,8 +8,8 @@ name: email-scan (Module A)
 # before credentials exist. Uncomment the schedule once GMAIL_* secrets are set.
 
 on:
-  # schedule:
-  #   - cron: "30 11 * * *"   # daily, offset from web-check
+  schedule:
+    - cron: "30 11 * * *"   # daily, offset from web-check
   workflow_dispatch: {}
 
 permissions:
@@ -54,6 +54,12 @@ jobs:
           OPENROUTER_API_KEY: ${{ secrets.OPENROUTER_API_KEY }}
           ANTHROPIC_API_KEY: ${{ secrets.ANTHROPIC_API_KEY }}
         run: python -m modules.email_scanner --days 3 --llm --digest-out digest.md
+
+      - name: Sync new leads to Supabase (dashboard)
+        env:
+          SUPABASE_URL: ${{ secrets.SUPABASE_URL }}
+          SUPABASE_SERVICE_KEY: ${{ secrets.SUPABASE_SERVICE_KEY }}
+        run: python scripts/sync_to_supabase.py
 
       - name: Commit updated store
         run: |
