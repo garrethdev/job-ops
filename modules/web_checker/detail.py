@@ -15,17 +15,28 @@ from core.config import firecrawl_key
 
 API = "https://api.firecrawl.dev/v1/scrape"
 MAX_CHARS = 6000
+_DETAIL_PROMPT = (
+    "Extract the full job posting text ONLY: role summary, responsibilities, "
+    "requirements/qualifications, compensation, and location/workplace type. "
+    "Return clean plain text. EXCLUDE site navigation, menus, headers, footers, "
+    "cookie banners, 'similar jobs', and apply buttons."
+)
+_DETAIL_SCHEMA = {"type": "object", "properties": {"description": {"type": "string"}}}
 
 
 def fetch_description(url: str, timeout: int = 90) -> str:
-    """Return the detail page's main content as markdown, or '' on any failure."""
+    """Return the posting's clean description text, or '' on any failure.
+
+    Uses Firecrawl JSON extraction (not raw markdown) so we get the job body
+    without the site's nav/menu chrome."""
     key = firecrawl_key()
     if not key or not url:
         return ""
     body = json.dumps({
         "url": url,
-        "formats": ["markdown"],
+        "formats": ["json"],
         "onlyMainContent": True,
+        "jsonOptions": {"prompt": _DETAIL_PROMPT, "schema": _DETAIL_SCHEMA},
     }).encode("utf-8")
     req = urllib.request.Request(
         API, data=body,
@@ -35,7 +46,7 @@ def fetch_description(url: str, timeout: int = 90) -> str:
     try:
         with urllib.request.urlopen(req, timeout=timeout) as resp:
             data = json.loads(resp.read().decode("utf-8"))
-        md = ((data.get("data") or {}).get("markdown") or "").strip()
-        return md[:MAX_CHARS]
+        desc = (((data.get("data") or {}).get("json") or {}).get("description") or "").strip()
+        return desc[:MAX_CHARS]
     except Exception:
         return ""  # detail enrichment is best-effort; never sink the run
