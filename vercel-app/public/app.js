@@ -56,12 +56,14 @@ async function load() {
 
 function render() {
   const lane = $("#f-lane").value, min = +$("#f-min").value,
-        onlyNew = $("#f-enriched").checked, q = $("#f-q").value.toLowerCase();
+        onlyNew = $("#f-enriched").checked, q = $("#f-q").value.toLowerCase(),
+        stage = $("#f-stage").value;
   const rows = $("#rows");
   rows.innerHTML = "";
   const list = LEADS.filter((x) =>
     (!lane || x.lane === lane) && x.fit_score >= min &&
     (!onlyNew || !(x.contact && x.contact.linkedin)) &&
+    (!stage || (stage === "active" ? stageOf(x) !== "new" : stageOf(x) === stage)) &&
     (!q || (x.title + " " + x.company).toLowerCase().includes(q)));
   $("#count").textContent = list.length + " / " + LEADS.length + " leads";
   $("#empty").hidden = list.length > 0;
@@ -344,7 +346,7 @@ async function findContactSearch() {
 }
 
 /* --- boot ---------------------------------------------------------------- */
-["#f-lane", "#f-min", "#f-enriched", "#f-q"].forEach((s) => $(s).addEventListener("input", render));
+["#f-lane", "#f-stage", "#f-min", "#f-enriched", "#f-q"].forEach((s) => $(s).addEventListener("input", render));
 $("#pw") && $("#pw").addEventListener("keydown", (e) => { if (e.key === "Enter") submitPw(); });
 $("#o-lead") && $("#o-lead").addEventListener("change", () => {
   $("#o-editor").hidden = true; delete $("#o-editor").dataset.leadId;
