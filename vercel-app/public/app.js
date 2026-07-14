@@ -313,6 +313,37 @@ function openDetail(id) {
 }
 function closeDetail() { $("#detail").hidden = true; }
 
+/* --- add a lead by hand ---------------------------------------------------- */
+function openAddLead() {
+  for (const id of ["al-title", "al-company", "al-url", "al-location", "al-comp", "al-desc", "al-notes"]) $("#" + id).value = "";
+  $("#al-lane").value = ""; $("#al-fit").value = "7"; $("#al-status").textContent = "";
+  $("#addlead").hidden = false; $("#al-title").focus();
+}
+function closeAddLead() { $("#addlead").hidden = true; }
+async function submitAddLead() {
+  const title = $("#al-title").value.trim(), company = $("#al-company").value.trim();
+  if (!title || !company) { $("#al-status").textContent = "Role and company are required."; return; }
+  const btn = $("#al-submit"), old = btn.textContent;
+  btn.disabled = true; btn.textContent = "Adding…";
+  try {
+    const body = {
+      title, company, lane: $("#al-lane").value,
+      url: $("#al-url").value.trim(), location: $("#al-location").value.trim(),
+      comp: $("#al-comp").value.trim(), description: $("#al-desc").value.trim(),
+      notes: $("#al-notes").value.trim(), fit: parseInt($("#al-fit").value, 10),
+    };
+    const d = await (await api("/api/add", { method: "POST", body: JSON.stringify(body) })).json();
+    if (d.error) { $("#al-status").textContent = "Failed: " + d.error; return; }
+    LEADS = [d.lead, ...LEADS.filter((l) => l.id !== d.lead.id)];  // surface it on the board
+    render(); closeAddLead();
+    toast(`Added: ${d.lead.title} — ${d.lead.company}`);
+  } catch (e) {
+    $("#al-status").textContent = "Request failed.";
+  } finally {
+    btn.disabled = false; btn.textContent = old;
+  }
+}
+
 /* --- find a contact (ad-hoc company lookup) ------------------------------ */
 async function findContactSearch() {
   const company = $("#find-company").value.trim();
@@ -354,10 +385,12 @@ $("#o-lead") && $("#o-lead").addEventListener("change", () => {
 });
 $("#d-close").addEventListener("click", closeDetail);
 $("#d-backdrop").addEventListener("click", closeDetail);
-document.addEventListener("keydown", (e) => { if (e.key === "Escape") closeDetail(); });
+$("#al-close").addEventListener("click", closeAddLead);
+$("#al-backdrop").addEventListener("click", closeAddLead);
+document.addEventListener("keydown", (e) => { if (e.key === "Escape") { closeDetail(); closeAddLead(); } });
 
 // This file is a module, so top-level functions aren't global. Expose the ones
 // referenced by inline onclick= handlers in index.html.
-Object.assign(window, { submitPw, logout, load, showTab, craftEmail, saveDraft, findContactSearch });
+Object.assign(window, { submitPw, logout, load, showTab, craftEmail, saveDraft, findContactSearch, openAddLead, submitAddLead });
 
 load();

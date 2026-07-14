@@ -341,3 +341,15 @@ a:hover { color: var(--accent-strong); text-decoration: underline; }
 }
 .d-rationale { font-size: 13px; color: var(--text-muted); line-height: 1.55; }
 .d-flag { color: var(--amber); font-size: 13px; }
+
+/* Add-lead form (inside .modal__card) */
+.modal__title { margin: 0 0 18px; font-size: 18px; font-weight: 750; letter-spacing: -.02em; padding-right: 34px; }
+.form-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 14px; }
+.form-field { display: flex; flex-direction: column; gap: 6px; font-size: 12px; color: var(--text-muted); }
+.form-field--wide { grid-column: 1 / -1; }
+.form-textarea {
+  width: 100%; min-height: 76px; resize: vertical; font: 13px/1.5 var(--font); color: var(--text);
+  background: var(--surface); border: 1px solid var(--border-strong); border-radius: var(--radius-sm); padding: 9px 11px;
+}
+.form-textarea:focus { outline: none; border-color: var(--accent); box-shadow: var(--ring); }
+.form-actions { display: flex; align-items: center; gap: 12px; margin-top: 20px; }

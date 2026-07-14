@@ -119,6 +119,7 @@
   <input id="f-q" class="input input--search" type="text" placeholder="Search role or company…">
   <div class="toolbar__spacer"></div>
   <span id="count" class="toolbar__count"></span>
+  <button class="btn btn--primary" onclick="openAddLead()">+ Add lead</button>
   <button class="btn" onclick="load()">Refresh</button>
   <button class="btn" onclick="logout()">Lock</button>
 </div>
@@ -145,6 +146,56 @@
 </section>
 
 <div id="toast" class="toast"></div>
+
+<!-- Add lead modal -->
+<div id="addlead" class="modal" hidden>
+  <div id="al-backdrop" class="modal__backdrop"></div>
+  <div class="modal__card" role="dialog" aria-modal="true">
+    <button id="al-close" class="modal__close" aria-label="Close">✕</button>
+    <h2 class="modal__title">Add a lead</h2>
+    <div class="form-grid">
+      <label class="form-field form-field--wide">Role / title *
+        <input id="al-title" class="input" placeholder="e.g. Head of AI">
+      </label>
+      <label class="form-field form-field--wide">Company *
+        <input id="al-company" class="input" placeholder="e.g. Kin Health">
+      </label>
+      <label class="form-field">Lane
+        <select id="al-lane" class="input">
+          <option value="">—</option>
+          <option value="ai-consultant">AI Consultant</option>
+          <option value="software-architect">Software Architect</option>
+          <option value="gtm-engineer">GTM Engineer</option>
+          <option value="ai-video-editor">AI Video Editor</option>
+          <option value="product-lead">Product Lead</option>
+          <option value="marketing-lead">Marketing Lead</option>
+        </select>
+      </label>
+      <label class="form-field">Fit (1–10)
+        <input id="al-fit" class="input" type="number" min="0" max="10" value="7">
+      </label>
+      <label class="form-field form-field--wide">Link to posting
+        <input id="al-url" class="input" placeholder="https://… (optional)">
+      </label>
+      <label class="form-field">Location
+        <input id="al-location" class="input" placeholder="Remote / NYC / …">
+      </label>
+      <label class="form-field">Comp
+        <input id="al-comp" class="input" placeholder="$150k / $80/hr">
+      </label>
+      <label class="form-field form-field--wide">Description
+        <textarea id="al-desc" class="form-textarea" placeholder="paste the job description — shown when you click the role"></textarea>
+      </label>
+      <label class="form-field form-field--wide">Notes
+        <textarea id="al-notes" class="form-textarea" placeholder="your notes on this lead"></textarea>
+      </label>
+    </div>
+    <div class="form-actions">
+      <button id="al-submit" class="btn btn--primary" onclick="submitAddLead()">Add lead</button>
+      <span id="al-status" class="outreach__status"></span>
+    </div>
+  </div>
+</div>
 
 <!-- Role detail modal -->
 <div id="detail" class="modal" hidden>
