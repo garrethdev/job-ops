@@ -30,6 +30,7 @@ from core.config import (
     openrouter_key,
 )
 from core.profile import load_keywords
+from core.vetting import junk_reason
 
 ANTHROPIC_MODEL = "claude-sonnet-5"
 ANTHROPIC_URL = "https://api.anthropic.com/v1/messages"
@@ -127,6 +128,7 @@ Respond with ONLY a JSON object:
 Rules:
 - Pick the single best-fitting role.
 - fit_score: 1-3 = weak/neither, 4-6 = plausible, 7-10 = strong. Be strict.
+- DIRECT MATCH ONLY: the candidate wants exactly the four lanes above. A generic or adjacent engineering role (backend/full-stack/data/ML-infra/devops/SRE/research/computer-vision), or a role that only loosely touches AI, must score 1-3 even if technically engineering. A "multiple roles"/listing-index posting or a non-employer company scores 1. Reserve 6+ for a genuine, direct match to a specific named lane.
 {location_rule}
 POSTING:
 title: {title}
@@ -219,8 +221,17 @@ def score_one(record: Dict[str, Any], use_llm: bool = False) -> Dict[str, Any]:
 def apply_scores(
     records: List[Dict[str, Any]], use_llm: bool = False
 ) -> List[Dict[str, Any]]:
-    """Score any record still unscored (fit_score 0 / lane empty). In place."""
+    """Score any record still unscored (fit_score 0 / lane empty). In place.
+
+    Junk artifacts (see core.vetting) are stamped fit_score=1 without an LLM call,
+    so they can never surface regardless of how the model might rate them."""
     for r in records:
         if r.get("fit_score", 0) == 0 or not r.get("lane"):
-            r.update(score_one(r, use_llm=use_llm))
+            reason = junk_reason(r)
+            if reason:
+                r["fit_score"] = 1
+                r["fit_rationale"] = "auto-rejected (vetting): " + reason
+                r["red_flags"] = list(r.get("red_flags") or []) + ["scraping artifact: " + reason]
+            else:
+                r.update(score_one(r, use_llm=use_llm))
     return records
