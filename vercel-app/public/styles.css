@@ -198,6 +198,9 @@ a:hover { color: var(--accent-strong); text-decoration: underline; }
 .star:hover { color: var(--amber); transform: scale(1.15); }
 .star--on { color: #e0a213; }
 .date-in { color: var(--text-faint); font-size: 12px; white-space: nowrap; font-variant-numeric: tabular-nums; }
+.col-added { cursor: pointer; user-select: none; white-space: nowrap; }
+.col-added:hover { color: var(--accent); }
+.sort-caret { color: var(--accent); font-size: 11px; }
 
 .role { font-weight: 650; letter-spacing: -.01em; }
 .role--link { cursor: pointer; }

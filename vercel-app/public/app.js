@@ -68,7 +68,10 @@ function render() {
     (!onlyNew || !(x.contact && x.contact.linkedin)) &&
     (!stage || (stage === "active" ? stageOf(x) !== "new" : stageOf(x) === stage)) &&
     (!q || (x.title + " " + x.company).toLowerCase().includes(q)));
-  sortLeads(list, $("#f-sort") ? $("#f-sort").value : "newest");
+  const sortMode = $("#f-sort") ? $("#f-sort").value : "newest";
+  sortLeads(list, sortMode);
+  const caret = $("#added-caret");
+  if (caret) caret.textContent = sortMode === "newest" ? "↓" : sortMode === "oldest" ? "↑" : "";
   $("#count").textContent = list.length + (currentTab === "warm" ? " warm" : " / " + LEADS.length) + " leads";
   $("#empty").hidden = list.length > 0;
   for (const x of list) rows.appendChild(rowEl(x));
@@ -406,6 +409,10 @@ async function findContactSearch() {
 
 /* --- boot ---------------------------------------------------------------- */
 ["#f-lane", "#f-stage", "#f-sort", "#f-min", "#f-enriched", "#f-q"].forEach((s) => $(s).addEventListener("input", render));
+$("#th-added") && $("#th-added").addEventListener("click", () => {  // click the column to re-sort by date
+  $("#f-sort").value = $("#f-sort").value === "newest" ? "oldest" : "newest";
+  render();
+});
 $("#pw") && $("#pw").addEventListener("keydown", (e) => { if (e.key === "Enter") submitPw(); });
 $("#o-lead") && $("#o-lead").addEventListener("change", () => {
   $("#o-editor").hidden = true; delete $("#o-editor").dataset.leadId;
