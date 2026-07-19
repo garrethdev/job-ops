@@ -30,6 +30,7 @@
 <!-- Tabs -->
 <nav class="tabs">
   <button id="tab-leads" class="tab tab--active" onclick="showTab('leads')">Leads</button>
+  <button id="tab-warm" class="tab" onclick="showTab('warm')">★ Warm</button>
   <button id="tab-outreach" class="tab" onclick="showTab('outreach')">Outreach</button>
 </nav>
 
@@ -110,6 +111,13 @@
       <option value="reached_out">Reached out</option>
     </select>
   </label>
+  <label class="field">Sort
+    <select id="f-sort" class="input">
+      <option value="newest">Newest first</option>
+      <option value="oldest">Oldest first</option>
+      <option value="fit">Best fit</option>
+    </select>
+  </label>
   <label class="field">Min fit
     <input id="f-min" class="input input--num" type="number" min="0" max="10" value="0">
   </label>
@@ -129,9 +137,11 @@
   <table class="leads">
     <thead>
       <tr>
+        <th class="col-star" aria-label="Warm"></th>
         <th class="col-fit">Fit</th>
         <th>Role</th>
         <th>Company</th>
+        <th>Added</th>
         <th>Lane</th>
         <th>Contact</th>
         <th>Notes</th>

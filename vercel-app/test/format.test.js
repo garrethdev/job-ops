@@ -1,6 +1,17 @@
 import { test } from "node:test";
 import assert from "node:assert/strict";
-import { esc, safeUrl, safeEmail, laneLabel, scoreClass, initials, fmtDate, stripTag } from "../public/format.js";
+import { esc, safeUrl, safeEmail, laneLabel, scoreClass, initials, fmtDate, stripTag, sortLeads } from "../public/format.js";
+
+test("sortLeads orders by date (newest default) and by fit", () => {
+  const mk = (id, first_seen, fit_score) => ({ id, first_seen, fit_score });
+  const a = mk("a", "2026-07-10T00:00:00Z", 5);
+  const b = mk("b", "2026-07-14T00:00:00Z", 9);
+  const c = mk("c", "2026-07-12T00:00:00Z", 7);
+  assert.deepEqual(sortLeads([a, b, c], "newest").map((x) => x.id), ["b", "c", "a"]);
+  assert.deepEqual(sortLeads([a, b, c], "oldest").map((x) => x.id), ["a", "c", "b"]);
+  assert.deepEqual(sortLeads([a, b, c], "fit").map((x) => x.id), ["b", "c", "a"]);
+  assert.deepEqual(sortLeads([a, b, c], undefined).map((x) => x.id), ["b", "c", "a"]); // defaults newest
+});
 import { looksLikeEmail } from "../lib/mime.js";
 
 test("safeUrl blocks dangerous schemes, keeps http(s)", () => {

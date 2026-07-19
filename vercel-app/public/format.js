@@ -27,6 +27,19 @@ export const LANE_LABELS = {
 export const stripTag = (s) => String(s || "").replace(/^\s*\[[^\]]*\]\s*/, "");
 
 export const laneLabel = (l) => LANE_LABELS[l] || l || "—";
+
+// Sort a lead list in place by the chosen mode. first_seen is ISO-8601, so
+// lexical string compare orders it correctly. Default: newest first.
+export function sortLeads(list, mode) {
+  const byNew = (a, b) => String(b.first_seen || "").localeCompare(String(a.first_seen || ""));
+  const cmp = {
+    newest: byNew,
+    oldest: (a, b) => String(a.first_seen || "").localeCompare(String(b.first_seen || "")),
+    fit: (a, b) => (b.fit_score || 0) - (a.fit_score || 0) || byNew(a, b),
+  }[mode] || byNew;
+  list.sort(cmp);
+  return list;
+}
 export const scoreClass = (s) => (s >= 8 ? "s-hi" : s >= 6 ? "s-mid" : "s-lo");
 
 // Format an ISO timestamp as "Jul 10, 2026" (UTC, so it's deterministic). "" for empty/invalid.

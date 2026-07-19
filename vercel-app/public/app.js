@@ -2,7 +2,9 @@
    Talks only to /api/* (password in x-dash-key header). No secrets here.
    Pure helpers live in format.js so they can be unit-tested. */
 
-import { esc, safeUrl, safeEmail, laneLabel, scoreClass, initials, fmtDate, stripTag } from "./format.js";
+import { esc, safeUrl, safeEmail, laneLabel, scoreClass, initials, fmtDate, stripTag, sortLeads } from "./format.js";
+
+let currentTab = "leads";  // leads | warm | outreach
 
 const STAGE_LABEL = { new: "New", wip: "Working", reached_out: "Reached out" };
 const STAGES = ["new", "wip", "reached_out"];
@@ -61,11 +63,13 @@ function render() {
   const rows = $("#rows");
   rows.innerHTML = "";
   const list = LEADS.filter((x) =>
+    (currentTab !== "warm" || x.warm === true) &&
     (!lane || x.lane === lane) && x.fit_score >= min &&
     (!onlyNew || !(x.contact && x.contact.linkedin)) &&
     (!stage || (stage === "active" ? stageOf(x) !== "new" : stageOf(x) === stage)) &&
     (!q || (x.title + " " + x.company).toLowerCase().includes(q)));
-  $("#count").textContent = list.length + " / " + LEADS.length + " leads";
+  sortLeads(list, $("#f-sort") ? $("#f-sort").value : "newest");
+  $("#count").textContent = list.length + (currentTab === "warm" ? " warm" : " / " + LEADS.length) + " leads";
   $("#empty").hidden = list.length > 0;
   for (const x of list) rows.appendChild(rowEl(x));
 }
@@ -90,10 +94,12 @@ function rowEl(x) {
     : `<span class="muted">—</span>`;
   const flags = (x.red_flags || []).length ? `<div class="flags">⚠ ${esc(x.red_flags.join("; "))}</div>` : "";
   tr.innerHTML = `
+    <td><button class="star ${x.warm ? "star--on" : ""} act-warm" title="${x.warm ? "warm — click to unstar" : "mark warm"}">${x.warm ? "★" : "☆"}</button></td>
     <td><span class="score ${scoreClass(x.fit_score)}">${x.fit_score ?? "·"}</span></td>
     <td><div class="role role--link" title="View role details">${esc(x.title)}</div><div class="rationale">${esc(stripTag(x.fit_rationale))}</div>${flags}</td>
     <td>${safeUrl(x.url) ? `<a href="${esc(safeUrl(x.url))}" target="_blank" rel="noopener noreferrer">${esc(x.company)} ↗</a>` : esc(x.company)}
         <div class="loc">${esc(x.location || "")}</div></td>
+    <td class="date-in" title="${esc(x.first_seen || "")}">${esc(fmtDate(x.first_seen))}</td>
     <td><span class="lane lane--${esc(x.lane || "none")}">${laneLabel(x.lane)}</span></td>
     <td>${contactHtml}</td>
     <td><div class="notes__disp" title="click to edit">${esc(x.notes) || '<span class="muted">+ note</span>'}</div></td>
@@ -108,6 +114,7 @@ function rowEl(x) {
   tr.querySelector(".act-em").onclick = () => findEmail(x.id, tr);
   tr.querySelector(".act-draft").onclick = () => draftFromRow(x.id);
   tr.querySelector(".act-stage").onchange = (e) => setStage(x.id, e.target.value, tr);
+  tr.querySelector(".act-warm").onclick = () => toggleWarm(x.id, tr);
   tr.querySelector(".act-rej").onclick = () => reject(x.id, tr);
   tr.querySelector(".role--link").onclick = () => openDetail(x.id);
   tr.querySelector(".notes__disp").onclick = (e) => editNotes(x, e.currentTarget);
@@ -189,12 +196,33 @@ function editNotes(x, disp) {
 
 /* --- tabs ----------------------------------------------------------------- */
 function showTab(name) {
-  const leads = name === "leads";
-  $("#view-leads").hidden = !leads;
-  $("#view-outreach").hidden = leads;
-  $("#tab-leads").classList.toggle("tab--active", leads);
-  $("#tab-outreach").classList.toggle("tab--active", !leads);
-  if (!leads) fillLeadPicker();
+  currentTab = name;
+  const onLeads = name === "leads" || name === "warm";  // Warm reuses the leads table
+  $("#view-leads").hidden = !onLeads;
+  $("#view-outreach").hidden = onLeads;
+  $("#tab-leads").classList.toggle("tab--active", name === "leads");
+  $("#tab-warm").classList.toggle("tab--active", name === "warm");
+  $("#tab-outreach").classList.toggle("tab--active", name === "outreach");
+  if (onLeads) render(); else fillLeadPicker();
+}
+
+async function toggleWarm(id, tr) {
+  const lead = LEADS.find((l) => l.id === id);
+  const next = !lead.warm;
+  const btn = tr.querySelector(".act-warm");
+  btn.disabled = true;
+  try {
+    const d = await (await api(`/api/warm?id=${encodeURIComponent(id)}`, {
+      method: "POST", body: JSON.stringify({ warm: next }),
+    })).json();
+    if (d.error) throw new Error(d.error);
+    lead.warm = !!d.lead.warm;
+    if (currentTab === "warm" && !lead.warm) { tr.remove(); render(); }  // dropped out of Warm view
+    else tr.replaceWith(rowEl(lead));
+    toast(lead.warm ? "★ Starred warm." : "Unstarred.");
+  } catch (e) {
+    btn.disabled = false; toast("Couldn’t update.");
+  }
 }
 
 /* --- outreach: craft an email in Garreth's voice -> Gmail draft ----------- */
@@ -377,7 +405,7 @@ async function findContactSearch() {
 }
 
 /* --- boot ---------------------------------------------------------------- */
-["#f-lane", "#f-stage", "#f-min", "#f-enriched", "#f-q"].forEach((s) => $(s).addEventListener("input", render));
+["#f-lane", "#f-stage", "#f-sort", "#f-min", "#f-enriched", "#f-q"].forEach((s) => $(s).addEventListener("input", render));
 $("#pw") && $("#pw").addEventListener("keydown", (e) => { if (e.key === "Enter") submitPw(); });
 $("#o-lead") && $("#o-lead").addEventListener("change", () => {
   $("#o-editor").hidden = true; delete $("#o-editor").dataset.leadId;
