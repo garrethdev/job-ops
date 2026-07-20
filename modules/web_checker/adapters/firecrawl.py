@@ -124,6 +124,7 @@ def fetch(entry: Dict) -> List[Dict]:
     prompt = entry.get("prompt", _DEFAULT_PROMPT)
     wait_for = int(entry.get("wait_for", 0))
     must_contain = entry.get("url_must_contain", "")
+    no_url = bool(entry.get("no_url"))  # board has no real per-role links (only category pages)
     company_from_detail = bool(entry.get("company_from_detail"))
     name = entry.get("name", "firecrawl")
     urls = entry.get("urls") or ([entry["url"]] if entry.get("url") else [])
@@ -142,7 +143,7 @@ def fetch(entry: Dict) -> List[Dict]:
             if company.lower() in _PLACEHOLDER_COMPANY:
                 company = ""
             location = (j.get("location") or "").strip()
-            link = _valid_link(j.get("url"), url, must_contain)
+            link = "" if no_url else _valid_link(j.get("url"), url, must_contain)
             if not passes_prefilter(" ".join([title, company, location]), keywords):
                 continue
             if company_from_detail and not company and link:

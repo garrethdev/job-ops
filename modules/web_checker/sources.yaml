@@ -191,7 +191,8 @@ sources:
     source: board
     limit: 25
     url: "https://nextplay.so/jobs"
-    wait_for: 6000             # SPA; job cards have NO per-role link -> url ends up "" (Find-LinkedIn instead)
+    wait_for: 6000             # SPA
+    no_url: true               # cards have NO real per-role link (only category pages) -> Find-LinkedIn instead
     keywords: [gtm, "forward deployed", founding, staff, principal, architect, "applied ai", genai, llm, platform, growth, solutions, "solutions engineer"]
 
 # LinkedIn/Upwork route through email alerts (Module A), not naive scraping —
