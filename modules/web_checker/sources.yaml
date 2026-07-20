@@ -152,5 +152,47 @@ sources:
       - growth
       - product
 
+  - name: aijobs
+    adapter: firecrawl
+    enabled: true
+    source: board
+    limit: 12
+    url: "https://aijobs.net/"
+    company_from_detail: true   # employer hidden on the list page -> fetch from detail
+    fetch_detail: true
+    prompt: "Extract every job listing on this page: the job title, the location, and the absolute URL to the job posting detail page. The company name is usually NOT shown on the list — leave company blank if absent."
+    keywords: [architect, consultant, applied, genai, "generative ai", llm, "machine learning", "solutions", staff, principal, platform, founding]
+
+  - name: workatastartup
+    adapter: firecrawl
+    enabled: true
+    source: board
+    limit: 25
+    url: "https://www.workatastartup.com/jobs"
+    wait_for: 8000              # React SPA — needs render delay
+    url_must_contain: "workatastartup.com/jobs/"
+    fetch_detail: true
+    keywords: [founding, staff, principal, architect, "applied ai", "machine learning", genai, llm, platform, infrastructure, "forward deployed", solutions, growth, gtm]
+
+  - name: wellfound
+    adapter: firecrawl
+    enabled: true
+    source: board
+    limit: 25
+    url: "https://wellfound.com/jobs"
+    wait_for: 8000              # SPA + rate-limited; retry built into the adapter
+    url_must_contain: "wellfound.com/jobs/"
+    fetch_detail: true
+    keywords: [gtm, growth, "solutions engineer", "sales engineer", "forward deployed", founding, architect, "applied ai", genai, llm, platform, consultant]
+
+  - name: nextplay
+    adapter: firecrawl
+    enabled: true
+    source: board
+    limit: 25
+    url: "https://nextplay.so/jobs"
+    wait_for: 6000             # SPA; job cards have NO per-role link -> url ends up "" (Find-LinkedIn instead)
+    keywords: [gtm, "forward deployed", founding, staff, principal, architect, "applied ai", genai, llm, platform, growth, solutions, "solutions engineer"]
+
 # LinkedIn/Upwork route through email alerts (Module A), not naive scraping —
-# see GAMEPLAN §3.
+# see GAMEPLAN §3.  Remotive = separate API-based setup (not Firecrawl).
