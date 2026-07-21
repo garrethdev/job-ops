@@ -195,5 +195,59 @@ sources:
     no_url: true               # cards have NO real per-role link (only category pages) -> Find-LinkedIn instead
     keywords: [gtm, "forward deployed", founding, staff, principal, architect, "applied ai", genai, llm, platform, growth, solutions, "solutions engineer"]
 
+  # --- GTM-engineer-specific boards (nearly every role is in-lane) ---
+  - name: bloomberry-gtm
+    adapter: firecrawl
+    enabled: true
+    source: board
+    limit: 20
+    url: "https://bloomberry.com/gtm_jobs.html"
+    wait_for: 6000
+    trust_ats: true            # links out to real company ATS pages (Ashby/Greenhouse)
+    fetch_detail: true
+    keywords: [gtm, "go-to-market", "go to market", revops, "revenue operations", growth, engineer, solutions]
+
+  - name: cargo-gtm
+    adapter: firecrawl
+    enabled: true
+    source: board
+    limit: 20
+    url: "https://www.getcargo.ai/jobs"
+    wait_for: 6000
+    trust_ats: true
+    fetch_detail: true
+    keywords: [gtm, "go-to-market", "go to market", revops, "revenue operations", growth, engineer, solutions]
+
+  - name: gtmepulse
+    adapter: firecrawl
+    enabled: true
+    source: board
+    limit: 25
+    url: "https://gtmepulse.com/jobs/"
+    wait_for: 6000
+    no_url: true               # board-anchor links only -> Find-LinkedIn (real companies)
+    keywords: [gtm, "go-to-market", "go to market", revops, "revenue operations", growth, engineer]
+
+  - name: gtm-engineer-jobs
+    adapter: firecrawl
+    enabled: true
+    source: board
+    limit: 20
+    url: "https://gtm-engineer-jobs.com/"
+    wait_for: 6000
+    no_url: true               # board-anchor links only
+    keywords: [gtm, "go-to-market", "go to market", revops, growth, engineer]
+
+  - name: clay-gtm
+    adapter: firecrawl
+    enabled: true
+    source: board
+    limit: 20
+    url: "https://www.clay.com/job-board"
+    wait_for: 9000             # heavy SPA; needs a long render delay
+    trust_ats: true
+    fetch_detail: true
+    keywords: [gtm, "go-to-market", "go to market", revops, growth, engineer, solutions]
+
 # LinkedIn/Upwork route through email alerts (Module A), not naive scraping —
 # see GAMEPLAN §3.  Remotive = separate API-based setup (not Firecrawl).

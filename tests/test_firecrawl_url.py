@@ -36,5 +36,16 @@ def test_empty_link_stays_empty():
     assert _valid_link(None, "https://nextplay.so/jobs", "") == ""
 
 
+def test_trust_ats_keeps_out_of_domain_ats_links():
+    board = "https://bloomberry.com/gtm_jobs.html"
+    ats = "https://jobs.ashbyhq.com/owner/12650f0b"
+    # without trust_ats, a cross-domain link is dropped; with it, ATS links pass
+    assert _valid_link(ats, board, "") == ""
+    assert _valid_link(ats, board, "", trust_ats=True) == ats
+    assert _valid_link("https://job-boards.greenhouse.io/fireworksai/jobs/1", board, "", trust_ats=True).endswith("/jobs/1")
+    # a random non-ATS domain is still dropped even with trust_ats
+    assert _valid_link("https://casadellibro.com/x", board, "", trust_ats=True) == ""
+
+
 if __name__ == "__main__":
     raise SystemExit(tests._bootstrap.run_module(dict(globals())))

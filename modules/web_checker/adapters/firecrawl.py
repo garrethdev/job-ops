@@ -37,6 +37,7 @@ _SCHEMA = {
                     "title": {"type": "string"},
                     "company": {"type": "string"},
                     "location": {"type": "string"},
+                    "comp": {"type": "string"},
                     "url": {"type": "string"},
                 },
             },
@@ -104,7 +105,18 @@ def _detail_company(detail_url: str, wait_for: int) -> str:
         return ""
 
 
-def _valid_link(link: str, board_url: str, must_contain: str) -> str:
+# Real applicant-tracking / apply domains that aggregator boards (bloomberry,
+# cargo) legitimately link OUT to — so a cross-domain link to one of these is a
+# real apply page, not a hallucination.
+_ATS_DOMAINS = (
+    "ashbyhq.com", "greenhouse.io", "lever.co", "workable.com", "recruitee.com",
+    "comeet.com", "ultipro.com", "myworkdayjobs.com", "smartrecruiters.com",
+    "breezy.hr", "teamtailor.com", "bamboohr.com", "jobvite.com", "rippling.com",
+    "linkedin.com/jobs", "naukri.com",
+)
+
+
+def _valid_link(link: str, board_url: str, must_contain: str, trust_ats: bool = False) -> str:
     """Return the apply URL only if it's trustworthy, else '' (drops hallucinations)."""
     link = (link or "").strip()
     if not link:
@@ -114,7 +126,11 @@ def _valid_link(link: str, board_url: str, must_contain: str) -> str:
     low = link.lower()
     if must_contain:
         return link if must_contain.lower() in low else ""
-    return link if _host(board_url) in low else ""  # default: same-board-domain only
+    if _host(board_url) in low:
+        return link  # same board domain
+    if trust_ats and any(d in low for d in _ATS_DOMAINS):
+        return link  # aggregator board linking out to a real ATS/apply page
+    return ""
 
 
 def fetch(entry: Dict) -> List[Dict]:
@@ -125,6 +141,7 @@ def fetch(entry: Dict) -> List[Dict]:
     wait_for = int(entry.get("wait_for", 0))
     must_contain = entry.get("url_must_contain", "")
     no_url = bool(entry.get("no_url"))  # board has no real per-role links (only category pages)
+    trust_ats = bool(entry.get("trust_ats"))  # aggregator board links out to real ATS pages
     company_from_detail = bool(entry.get("company_from_detail"))
     name = entry.get("name", "firecrawl")
     urls = entry.get("urls") or ([entry["url"]] if entry.get("url") else [])
@@ -143,7 +160,7 @@ def fetch(entry: Dict) -> List[Dict]:
             if company.lower() in _PLACEHOLDER_COMPANY:
                 company = ""
             location = (j.get("location") or "").strip()
-            link = "" if no_url else _valid_link(j.get("url"), url, must_contain)
+            link = "" if no_url else _valid_link(j.get("url"), url, must_contain, trust_ats)
             if not passes_prefilter(" ".join([title, company, location]), keywords):
                 continue
             if company_from_detail and not company and link:
@@ -152,7 +169,7 @@ def fetch(entry: Dict) -> List[Dict]:
                 continue  # no real employer -> would be junk-gated anyway
             out.append(partial(
                 title=title, company=company, url=link, location=location,
-                source=source, source_detail=name,
+                comp=(j.get("comp") or "").strip(), source=source, source_detail=name,
             ))
             if len(out) >= limit:
                 return out
