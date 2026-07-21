@@ -29,6 +29,14 @@ def test_real_company_names_are_not_junk_by_company():
         assert not vetting.is_junk(_rec("Staff Software Architect", co)), co
 
 
+def test_location_as_company_is_junk():
+    for co in ("Austin, TX, US", "McLean, VA, US", "San Francisco, CA", "London, UK"):
+        assert vetting.is_junk(_rec("GTM Engineer", co)), co
+    # real companies (incl. legal suffixes) must NOT trip the location guard
+    for co in ("Owner.com", "Acme, Inc", "Foo, LLC", "Fireworks AI"):
+        assert not vetting.is_junk(_rec("GTM Engineer", co)), co
+
+
 def test_real_role_is_not_junk():
     assert not vetting.is_junk(_rec("Staff Software Architect", "Baseten"))
     assert not vetting.is_junk(_rec("AI Solutions Architect", "LatentBridge"))

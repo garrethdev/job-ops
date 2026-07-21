@@ -32,6 +32,11 @@ _JUNK_COMPANY = {
 }
 
 
+# A "company" that is really a location, e.g. "Austin, TX, US" / "San Francisco, CA"
+# (some boards mis-map the location into the company field).
+_LOCATION_COMPANY = re.compile(r",\s*[A-Z]{2}(\s*,\s*(US|USA|UK))?\s*$")
+
+
 def junk_reason(record: Dict[str, Any]) -> str:
     """Return a short reason if the record is a scraping artifact, else ''."""
     title = (record.get("title") or "").strip()
@@ -42,6 +47,8 @@ def junk_reason(record: Dict[str, Any]) -> str:
         return "company missing/too short"
     if company.lower() in _JUNK_COMPANY:
         return f"'{company}' is not an employer (search engine / board / placeholder)"
+    if _LOCATION_COMPANY.search(company):
+        return f"'{company}' looks like a location, not an employer"
     if _JUNK_TITLE.search(title):
         return f"'{title}' is a listing index, not a single role"
     return ""
