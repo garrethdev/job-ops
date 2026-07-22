@@ -77,7 +77,7 @@ def test_score_llm_falls_back_to_heuristic_without_keys():
     r = _rec("Software Architect", "system design microservices kubernetes remote")
     with _NoKeys():
         res = score_llm(r)
-    assert res["fit_rationale"].startswith("[no LLM key -> heuristic] ")
+    assert res["fit_rationale"].startswith("[no LLM -> heuristic] ")
     assert res["lane"] == score_heuristic(r)["lane"]
 
 
@@ -138,3 +138,27 @@ def test_ignore_location_only_affects_location_dealbreakers():
     r = _rec("Unpaid Intern Architect", "unpaid intern on-site only")
     ig = score_heuristic(dict(r, ignore_location=True))
     assert any("unpaid" in f or "intern" in f for f in ig["red_flags"])
+
+
+def test_llm_unparseable_reply_falls_back_not_crash(monkeypatch=None):
+    # A non-JSON LLM reply must fall back to the heuristic, never raise.
+    orig = scoring._call_llm
+    scoring._call_llm = lambda prompt: ("I'm sorry, I can't help with that.", "openrouter", "deepseek")
+    try:
+        r = scoring.score_llm(_rec("GTM Engineer", "gtm revops automation remote"))
+        assert isinstance(r["fit_score"], int) and 0 <= r["fit_score"] <= 10
+        assert "heuristic" in r["fit_rationale"].lower()
+    finally:
+        scoring._call_llm = orig
+
+
+def test_llm_network_error_falls_back(monkeypatch=None):
+    def boom(prompt): raise RuntimeError("network down")
+    orig = scoring._call_llm
+    scoring._call_llm = boom
+    try:
+        r = scoring.score_llm(_rec("Solutions Architect", "platform distributed systems"))
+        assert isinstance(r["fit_score"], int)
+        assert "heuristic" in r["fit_rationale"].lower()
+    finally:
+        scoring._call_llm = orig

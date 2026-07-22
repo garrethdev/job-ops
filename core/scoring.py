@@ -199,18 +199,34 @@ def score_llm(record: Dict[str, Any]) -> Dict[str, Any]:
         comp=record.get("comp", ""),
         snippet=(record.get("snippet", "") or "")[:2000],
     )
-    text, provider, model = _call_llm(prompt)
-    if text is None:  # no key -> deterministic fallback, flagged in the rationale
+    # A network error or a non-JSON/empty LLM reply must NEVER crash the run —
+    # one bad response would take down the whole batch. Fall back to the heuristic.
+    try:
+        text, provider, model = _call_llm(prompt)
+    except Exception:
+        text, model = None, "llm-error"
+    if not text:  # no key / empty reply -> deterministic fallback, flagged
         result = score_heuristic(record)
-        result["fit_rationale"] = "[no LLM key -> heuristic] " + result["fit_rationale"]
+        result["fit_rationale"] = "[no LLM -> heuristic] " + result["fit_rationale"]
         return result
-    parsed = json.loads(text[text.find("{"): text.rfind("}") + 1])
+    try:
+        parsed = json.loads(text[text.find("{"): text.rfind("}") + 1])
+        if not isinstance(parsed, dict):
+            raise ValueError("not a JSON object")
+    except Exception:
+        result = score_heuristic(record)
+        result["fit_rationale"] = "[LLM reply unparseable -> heuristic] " + result["fit_rationale"]
+        return result
     lane = parsed.get("lane") if parsed.get("lane") in LANES else score_heuristic(record)["lane"]
+    try:
+        fit = int(parsed.get("fit_score", 0))
+    except (TypeError, ValueError):
+        fit = 0
     return {
         "lane": lane,
-        "fit_score": int(parsed.get("fit_score", 0)),
+        "fit_score": max(0, min(10, fit)),
         "fit_rationale": (f"[{model}] " + str(parsed.get("fit_rationale", "")))[:400],
-        "red_flags": [str(x) for x in parsed.get("red_flags", [])][:6],
+        "red_flags": [str(x) for x in (parsed.get("red_flags") or [])][:6],
     }
 
 
