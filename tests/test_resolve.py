@@ -33,3 +33,12 @@ def test_returns_empty_when_only_noise():
 
 if __name__ == "__main__":
     raise SystemExit(tests._bootstrap.run_module(dict(globals())))
+
+
+def test_is_error_page_detects_expired_postings():
+    from modules.web_checker.detail import is_error_page
+    assert is_error_page("404 Well... this is embarrassing. We can't seem to find the page.")
+    assert is_error_page("Page not found")
+    assert is_error_page("")            # empty
+    assert is_error_page("too short")   # < 25 chars
+    assert not is_error_page("We are hiring a GTM Engineer to own our revenue automation and RevOps stack.")

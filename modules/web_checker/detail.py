@@ -47,6 +47,23 @@ def fetch_description(url: str, timeout: int = 90) -> str:
         with urllib.request.urlopen(req, timeout=timeout) as resp:
             data = json.loads(resp.read().decode("utf-8"))
         desc = (((data.get("data") or {}).get("json") or {}).get("description") or "").strip()
-        return desc[:MAX_CHARS]
+        return "" if is_error_page(desc) else desc[:MAX_CHARS]
     except Exception:
         return ""  # detail enrichment is best-effort; never sink the run
+
+
+# A posting that expired between search and fetch returns a 404/"filled" page —
+# never store that as the job description.
+_ERROR_MARKERS = (
+    "404", "page not found", "page you're looking for", "page you are looking for",
+    "can't seem to find", "cannot be found", "this is embarrassing", "no longer available",
+    "no longer accepting", "position has been filled", "this job has expired",
+    "posting is closed", "not found", "oops",
+)
+
+
+def is_error_page(text: str) -> bool:
+    t = (text or "").strip().lower()
+    if len(t) < 25:
+        return True  # too little to be a real posting
+    return any(m in t for m in _ERROR_MARKERS)
