@@ -332,11 +332,13 @@ function openDetail(id) {
     <div class="d-meta">${meta || '<span class="d-tag">no location/comp captured</span>'}
       <span class="d-tag stage-sel--${stageOf(x)}" style="font-weight:600">${STAGE_LABEL[stageOf(x)]}${stageOf(x) === "reached_out" && x.outreached_at ? " · " + esc(fmtDate(x.outreached_at)) : ""}</span>
     </div>
-    ${url ? `<a class="d-link" href="${esc(url)}" target="_blank" rel="noopener noreferrer">View original posting ↗</a>` : ""}
+    ${url
+      ? `<a class="d-link" href="${esc(url)}" target="_blank" rel="noopener noreferrer">View original posting ↗</a>`
+      : `<a class="d-link" href="https://www.google.com/search?q=${encodeURIComponent('"' + (x.title || '') + '" ' + (x.company || '') + ' job apply')}" target="_blank" rel="noopener noreferrer">Find this posting ↗</a>`}
     ${x.fit_rationale ? `<div class="d-section"><h4>Why it fits</h4><div class="d-rationale">${esc(stripTag(x.fit_rationale))}</div></div>` : ""}
     ${(x.red_flags || []).length ? `<div class="d-section"><h4>Flags</h4><div class="d-flag">⚠ ${esc(x.red_flags.join("; "))}</div></div>` : ""}
     <div class="d-section"><h4>About the role</h4>
-      <div class="d-desc">${desc ? esc(desc) : '<span class="muted">No description was captured for this role' + (url ? " — open the original posting above." : ".") + "</span>"}</div>
+      <div class="d-desc">${desc ? esc(desc) : '<span class="muted">No description captured — use the ' + (url ? "posting link" : "“Find this posting” link") + " above.</span>"}</div>
     </div>
     ${c.linkedin || c.name ? `<div class="d-section"><h4>Contact</h4><div class="d-rationale">${esc(c.name || "")}${c.title ? " · " + esc(c.title) : ""}${safeUrl(c.linkedin) ? ` · <a href="${esc(safeUrl(c.linkedin))}" target="_blank" rel="noopener noreferrer">LinkedIn ↗</a>` : ""}${safeEmail(c.email) ? ` · <a href="mailto:${esc(safeEmail(c.email))}">${esc(safeEmail(c.email))}</a>` : ""}</div></div>` : ""}
     ${x.notes ? `<div class="d-section"><h4>Notes</h4><div class="d-rationale">${esc(x.notes)}</div></div>` : ""}`;

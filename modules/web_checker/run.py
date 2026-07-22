@@ -17,20 +17,29 @@ from core.scoring import apply_scores
 from modules.web_checker.adapters import get_adapter
 from modules.web_checker.config_loader import enabled_adapters, load_sources
 from modules.web_checker.detail import fetch_description
+from modules.web_checker.resolve import resolve_posting
 
-# Only fetch full detail pages for roles that clear this fit (keeps credits bounded).
+# Only enrich roles that clear this fit (keeps credits bounded).
 DETAIL_FIT_MIN = 6
 
 
 def _enrich_details(records: List[Dict[str, Any]]) -> None:
-    """For fetch_detail sources: replace the thin card snippet with the full
-    posting for KEPT roles. Then strip the transient scoring/enrichment flags so
-    they never persist to the store."""
+    """Make KEPT roles actionable: if a role has no link, search for the real
+    posting and attach it; then fetch the full posting text into `snippet`.
+    (A lead with no link and no description is useless — this fixes that.)
+    Strips the transient scoring/enrichment flags so they never persist."""
     for r in records:
-        if r.get("fetch_detail") and r.get("url") and r.get("fit_score", 0) >= DETAIL_FIT_MIN:
-            desc = fetch_description(r["url"])
-            if desc:
-                r["snippet"] = desc
+        if r.get("fit_score", 0) >= DETAIL_FIT_MIN:
+            if not r.get("url"):
+                url, desc = resolve_posting(r.get("title", ""), r.get("company", ""))
+                if url:
+                    r["url"] = url
+                    if desc and not r.get("snippet"):
+                        r["snippet"] = desc
+            if r.get("url") and (r.get("fetch_detail") or not r.get("snippet")):
+                full = fetch_description(r["url"])
+                if full:
+                    r["snippet"] = full
         r.pop("fetch_detail", None)
         r.pop("ignore_location", None)
 
