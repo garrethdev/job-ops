@@ -62,14 +62,29 @@ jobs:
         run: python scripts/sync_to_supabase.py
 
       - name: Commit updated store
+        continue-on-error: true   # store is cron state; Supabase is the dashboard's source of truth
         run: |
           git config user.name  "job-ops-bot"
           git config user.email "job-ops-bot@users.noreply.github.com"
-          if ! git diff --quiet -- store/opportunities.jsonl; then
+          if git diff --quiet -- store/opportunities.jsonl; then
+            echo "store unchanged, nothing to commit"; exit 0
+          fi
+          # Rebase our freshly-computed store onto the latest remote and retry, so a
+          # remote moved by the other cron never fails the run ('[rejected] fetch first').
+          branch="${GITHUB_REF_NAME:-main}"
+          cp store/opportunities.jsonl "$RUNNER_TEMP/ours.jsonl"
+          for i in 1 2 3 4 5; do
+            git fetch origin "$branch" && git reset --hard "origin/$branch"
+            cp "$RUNNER_TEMP/ours.jsonl" store/opportunities.jsonl
+            if git diff --quiet -- store/opportunities.jsonl; then
+              echo "store already current on remote"; exit 0
+            fi
             git add store/opportunities.jsonl
             git commit -m "email-scan: update store ($(date -u +%Y-%m-%dT%H:%MZ))"
-            git push
-          fi
+            if git push; then echo "pushed on attempt $i"; exit 0; fi
+            echo "push rejected (remote moved) — retry $i"; sleep $((i * 2))
+          done
+          echo "store push failed after retries (non-critical; leads are in Supabase)"
 
       - name: Open digest issue (only when there are new opportunities)
         if: steps.run.outputs.added != '0' && steps.run.outputs.added != ''
