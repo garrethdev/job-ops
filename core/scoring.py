@@ -129,6 +129,7 @@ Rules:
 - Pick the single best-fitting role.
 - fit_score: 1-3 = weak/neither, 4-6 = plausible, 7-10 = strong. Be strict.
 - DIRECT MATCH ONLY: the candidate wants exactly the four lanes above. A generic or adjacent engineering role (backend/full-stack/data/ML-infra/devops/SRE/research/computer-vision), or a role that only loosely touches AI, must score 1-3 even if technically engineering. A "multiple roles"/listing-index posting or a non-employer company scores 1. Reserve 6+ for a genuine, direct match to a specific named lane.
+- JUDGE THE DETAILS below (the real job posting), not just the title. If the details reveal the role is junior / entry-level / internship / unpaid, or is not actually one of the four lanes, cap fit_score at 3. A senior/strong title with a junior or off-lane description scores LOW.
 {location_rule}
 POSTING:
 title: {title}

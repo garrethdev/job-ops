@@ -5,6 +5,7 @@ whether to open a digest issue or a failure issue.
 """
 from __future__ import annotations
 
+import concurrent.futures
 from dataclasses import dataclass, field
 from pathlib import Path
 from typing import Any, Dict, List
@@ -13,33 +14,59 @@ from core import digest as digest_mod
 from core import store as store_mod
 from core.config import STORE_PATH
 from core.schema import new_record
-from core.scoring import apply_scores
+from core.scoring import apply_scores, score_heuristic
+from core.vetting import junk_reason
 from modules.web_checker.adapters import get_adapter
 from modules.web_checker.config_loader import enabled_adapters, load_sources
 from modules.web_checker.detail import fetch_description
 from modules.web_checker.resolve import resolve_posting
 
-# Only enrich roles that clear this fit (keeps credits bounded).
-DETAIL_FIT_MIN = 6
+# Cheap title-heuristic bar a role must clear before we spend a page fetch on it.
+# (Keeps page-before-score bounded: obviously off-lane titles never get fetched.)
+PRESCORE_MIN = 4
+_MIN_REAL_DESC = 200  # a snippet this long already IS the real description (API boards)
+_PAGE_FETCH_WORKERS = 8
 
 
-def _enrich_details(records: List[Dict[str, Any]]) -> None:
-    """Make KEPT roles actionable: if a role has no link, search for the real
-    posting and attach it; then fetch the full posting text into `snippet`.
-    (A lead with no link and no description is useless — this fixes that.)
-    Strips the transient scoring/enrichment flags so they never persist."""
+def _needs_page(r: Dict[str, Any]) -> bool:
+    """A role worth spending a page fetch on before scoring: not an artifact, no
+    real description yet, and its title carries at least some lane signal."""
+    return (
+        not junk_reason(r)
+        and len((r.get("snippet") or "").strip()) < _MIN_REAL_DESC
+        and score_heuristic(r)["fit_score"] >= PRESCORE_MIN
+    )
+
+
+def _prepare_for_scoring(records: List[Dict[str, Any]]) -> int:
+    """Fetch the REAL job page BEFORE scoring, so the accept/reject decision is
+    made on the actual description (remote/on-site, seniority, comp, true lane) —
+    not just the title. Bounded to keep cost sane: skip junk, skip roles that
+    already carry a real description (RemoteOK/WWR/HN/email), and skip titles with
+    no lane signal at all. For a candidate with no link, resolve one first.
+    Page fetches run in parallel. Returns how many pages were fetched."""
+    candidates = [r for r in records if _needs_page(r)]
+
+    def enrich(r: Dict[str, Any]) -> None:
+        if not r.get("url"):
+            url, desc = resolve_posting(r.get("title", ""), r.get("company", ""))
+            if url:
+                r["url"] = url
+                if desc and not r.get("snippet"):
+                    r["snippet"] = desc
+        if r.get("url"):
+            full = fetch_description(r["url"])
+            if full:
+                r["snippet"] = full
+
+    if candidates:
+        with concurrent.futures.ThreadPoolExecutor(max_workers=_PAGE_FETCH_WORKERS) as ex:
+            list(ex.map(enrich, candidates))
+    return len(candidates)
+
+
+def _strip_transient(records: List[Dict[str, Any]]) -> None:
     for r in records:
-        if r.get("fit_score", 0) >= DETAIL_FIT_MIN:
-            if not r.get("url"):
-                url, desc = resolve_posting(r.get("title", ""), r.get("company", ""))
-                if url:
-                    r["url"] = url
-                    if desc and not r.get("snippet"):
-                        r["snippet"] = desc
-            if r.get("url") and (r.get("fetch_detail") or not r.get("snippet")):
-                full = fetch_description(r["url"])
-                if full:
-                    r["snippet"] = full
         r.pop("fetch_detail", None)
         r.pop("ignore_location", None)
 
@@ -103,8 +130,10 @@ def run(
         raise RuntimeError("all web-checker sources failed: " + " | ".join(result.errors))
 
     result.fetched = len(collected)
-    apply_scores(collected, use_llm=use_llm)
-    _enrich_details(collected)
+    fetched_pages = _prepare_for_scoring(collected)  # open the real page BEFORE scoring
+    print(f"fetched {fetched_pages} job pages for page-based scoring")
+    apply_scores(collected, use_llm=use_llm)         # scores on the real description now
+    _strip_transient(collected)
     result.records = collected
 
     if dry_run:
