@@ -209,6 +209,16 @@ _FOREIGN_COUNTRY = re.compile(
     r"australia|new zealand|singapore|hong kong|japan|china|south korea|korea|"
     r"taiwan|philippines|indonesia|malaysia|thailand|vietnam|pakistan|"
     r"bangladesh|sri lanka|nepal|"
+    # Latin America (note: NOT 'georgia' - collides with the US state)
+    r"costa rica|panama|uruguay|ecuador|venezuela|guatemala|honduras|"
+    r"nicaragua|el salvador|bolivia|paraguay|dominican republic|"
+    # Eastern Europe / Balkans / Baltics / Caucasus / Central Asia
+    r"serbia|croatia|slovenia|slovakia|lithuania|latvia|estonia|armenia|"
+    r"belarus|kazakhstan|uzbekistan|azerbaijan|bosnia|montenegro|"
+    r"macedonia|albania|moldova|cyprus|malta|luxembourg|iceland|"
+    # Africa / Middle East
+    r"morocco|algeria|tunisia|ghana|uganda|tanzania|ethiopia|rwanda|"
+    r"mauritius|jordan|lebanon|"
     r"emea|apac|latam|latin america|mena|europe|middle east)\b",
     re.I,
 )
@@ -220,7 +230,10 @@ _FOREIGN_CITY = re.compile(
     r"london|manchester|dublin|berlin|munich|frankfurt|paris|amsterdam|madrid|"
     r"barcelona|lisbon|warsaw|krakow|bucharest|prague|tel aviv|dubai|"
     r"bangkok|manila|jakarta|kuala lumpur|ho chi minh|hanoi|karachi|lahore|"
-    r"são paulo|sao paulo|mexico city|buenos aires|bogota|lagos|nairobi)\b",
+    r"são paulo|sao paulo|mexico city|buenos aires|bogota|lagos|nairobi|"
+    r"belgrade|zagreb|ljubljana|sofia|vilnius|riga|tallinn|tbilisi|yerevan|"
+    r"almaty|casablanca|accra|kampala|addis ababa|tunis|amman|beirut|"
+    r"sarajevo|colombo|dhaka|kathmandu|phnom penh)\b",
     re.I,
 )
 
@@ -232,17 +245,18 @@ def location_reason(record: Dict[str, Any]) -> str:
     loc = record.get("location") or ""
     comp = record.get("comp") or ""
     title = record.get("title") or ""
+    # A foreign currency is decisive - it overrides even a US-looking location.
     if _FOREIGN_CCY.search(comp) or _FOREIGN_CCY.search(loc):
         return "salary in a non-USD/CAD currency (role is outside US/Canada)"
+    # A real US/Canada state/province code (", NH") or explicit US/Canada name is
+    # decisive the other way: it clears a location whose city/country name collides
+    # with a US town (Lebanon NH, Panama City FL, London KY, Malta NY, ...).
+    if _US_CA_ALLOW.search(loc):
+        return ""
     for field in (loc, title):
-        m = _FOREIGN_COUNTRY.search(field)
+        m = _FOREIGN_COUNTRY.search(field) or _FOREIGN_CITY.search(field)
         if m:
             return f"location outside US/Canada ({m.group(0)})"
-    if not _US_CA_ALLOW.search(loc):
-        for field in (loc, title):
-            m = _FOREIGN_CITY.search(field)
-            if m:
-                return f"location outside US/Canada ({m.group(0)})"
     return ""
 
 

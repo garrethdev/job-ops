@@ -130,13 +130,20 @@ def test_geography_rejects_outside_us_canada():
     assert vetting.is_junk(_geo(comp="₹ 30,00,000"))          # currency alone
     assert vetting.is_junk(_geo("Remote - EMEA"))
     assert vetting.is_junk(_geo("São Paulo, Brazil"))
+    # blocklist gaps found by scanning the live board:
+    assert vetting.is_junk(_geo("Belgrade"))
+    assert vetting.is_junk(_geo("Costa Rica"))
+    assert vetting.is_junk(_geo("Serbia"))
 
 
 def test_geography_allows_us_and_canada():
     for loc, comp in [("Austin, TX", "$180k"), ("Remote - US", ""),
                       ("Toronto, Canada", "CAD 150,000"), ("Remote (US)", "$200,000"),
                       ("London, KY", "$120k"), ("Vancouver, BC", ""),
-                      ("New York, NY", ""), ("Remote", "$150k"), ("", "")]:
+                      ("New York, NY", ""), ("Remote", "$150k"), ("", ""),
+                      ("Atlanta, Georgia", ""),     # US state, not the country
+                      ("Lebanon, NH", ""),          # US town, not the country
+                      ("Remote - US & Canada", "")]:
         assert not vetting.is_junk(_geo(loc, comp)), (loc, comp)
 
 
