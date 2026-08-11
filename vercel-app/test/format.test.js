@@ -10,6 +10,7 @@ test("sortLeads orders by date (newest default) and by fit", () => {
   assert.deepEqual(sortLeads([a, b, c], "newest").map((x) => x.id), ["b", "c", "a"]);
   assert.deepEqual(sortLeads([a, b, c], "oldest").map((x) => x.id), ["a", "c", "b"]);
   assert.deepEqual(sortLeads([a, b, c], "fit").map((x) => x.id), ["b", "c", "a"]);
+  assert.deepEqual(sortLeads([a, b, c], "fit_asc").map((x) => x.id), ["a", "c", "b"]); // worst fit first
   assert.deepEqual(sortLeads([a, b, c], undefined).map((x) => x.id), ["b", "c", "a"]); // defaults newest
 });
 import { looksLikeEmail } from "../lib/mime.js";

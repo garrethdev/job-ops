@@ -35,6 +35,10 @@ from core.vetting import junk_reason
 ANTHROPIC_MODEL = "claude-sonnet-5"
 ANTHROPIC_URL = "https://api.anthropic.com/v1/messages"
 
+# Below this many chars of description, an LLM score is a guess off the title,
+# not a judgement of the real posting -> cap the fit so it can't surface.
+_MIN_VERIFIABLE_DESC = 200
+
 # Cache compiled word-boundary patterns so scoring stays cheap across a batch.
 _PAT_CACHE: Dict[str, "re.Pattern[str]"] = {}
 
@@ -127,13 +131,19 @@ Respond with ONLY a JSON object:
 
 Rules:
 - Pick the single best-fitting role.
-- fit_score: 1-3 = weak/neither, 4-6 = plausible, 7-10 = strong. Be strict.
-- DIRECT MATCH ONLY: the candidate wants exactly the four lanes above. A generic or adjacent engineering role (backend/full-stack/data/ML-infra/devops/SRE/research/computer-vision), or a role that only loosely touches AI, must score 1-3 even if technically engineering. A "multiple roles"/listing-index posting or a non-employer company scores 1. Reserve 6+ for a genuine, direct match to a specific named lane.
+- GEOGRAPHY (automatic disqualifier, applies always): the candidate can ONLY work in the US or Canada. If the role's location/country is outside the US/Canada, requires relocation abroad, or the salary is quoted in a non-USD/CAD currency (INR/₹, EUR/€, GBP/£, SGD, AED, etc.), score 1 regardless of how well the role fits. A senior on-site role in Bangalore paying in rupees is a 1, not a 7.
+- fit_score: 1-3 = weak/neither, 4-6 = plausible-but-not-a-match, 7-10 = genuine direct match. Be strict. Do NOT park a non-match at 5-6 to be safe: if it is not clearly one of the four lanes, score it 1-3.
+- DIRECT MATCH ONLY: reserve 7+ for a genuine, direct match to a specific named lane.
+- HARD OFF-LANE (always score 1-3, even if the description name-drops architecture, cloud, distributed systems, or AI): security / infosec / DevOps / SRE / platform-reliability / data engineer / data scientist / back-end / front-end / full-stack / mobile / QA / test / network / embedded engineer, and generic mid-level "software engineer" with no architect/staff/principal scope. These are NOT software-architect.
+- KEPT as valid matches (do not down-rank for these alone): sales / solutions / pre-sales engineers (gtm-engineer); applied-AI / ML / GenAI / LLM engineers and AI solutions/platform architects (ai-consultant); staff / principal / distinguished engineers and hands-on software/system architects (software-architect).
 - JUDGE THE DETAILS below (the real job posting), not just the title. If the details reveal the role is junior / entry-level / internship / unpaid, or is not actually one of the four lanes, cap fit_score at 3. A senior/strong title with a junior or off-lane description scores LOW.
+- INSUFFICIENT INFO: if the details are empty or too thin to confirm the role is a real, direct-match posting, score at most 3 - do not guess high on a title alone.
 {location_rule}
 POSTING:
 title: {title}
 company: {company}
+company_does: {company_summary}
+company_remote_policy: {company_remote}
 location: {location}
 comp: {comp}
 details: {snippet}
@@ -196,6 +206,8 @@ def score_llm(record: Dict[str, Any]) -> Dict[str, Any]:
         location_rule="" if ignore_loc else _LOCATION_RULE,
         title=record.get("title", ""),
         company=record.get("company", ""),
+        company_summary=record.get("company_summary", "") or "(unknown)",
+        company_remote=record.get("company_remote", "") or "(unknown)",
         location=record.get("location", ""),
         comp=record.get("comp", ""),
         snippet=(record.get("snippet", "") or "")[:2000],
@@ -223,10 +235,19 @@ def score_llm(record: Dict[str, Any]) -> Dict[str, Any]:
         fit = int(parsed.get("fit_score", 0))
     except (TypeError, ValueError):
         fit = 0
+    fit = max(0, min(10, fit))
+    rationale = str(parsed.get("fit_rationale", ""))
+    # Can't-verify floor: a high score on a title + a near-empty description is a
+    # guess, not a match. Without a real posting to judge, cap at 3 so it can't
+    # surface (this closes email/thin-snippet leads scoring 7 on nothing).
+    desc = (record.get("snippet", "") or "").strip()
+    if fit > 3 and len(desc) < _MIN_VERIFIABLE_DESC:
+        fit = 3
+        rationale = "[thin description - can't verify] " + rationale
     return {
         "lane": lane,
-        "fit_score": max(0, min(10, fit)),
-        "fit_rationale": (f"[{model}] " + str(parsed.get("fit_rationale", "")))[:400],
+        "fit_score": fit,
+        "fit_rationale": (f"[{model}] " + rationale)[:400],
         "red_flags": [str(x) for x in (parsed.get("red_flags") or [])][:6],
     }
 
@@ -243,6 +264,8 @@ def apply_scores(
     Junk artifacts (see core.vetting) are stamped fit_score=1 without an LLM call,
     so they can never surface regardless of how the model might rate them."""
     for r in records:
+        if r.get("status") == "rejected":
+            continue  # already gated (junk / company gate) -> don't score or overwrite
         if r.get("fit_score", 0) == 0 or not r.get("lane"):
             reason = junk_reason(r)
             if reason:

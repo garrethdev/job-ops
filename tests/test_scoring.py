@@ -82,7 +82,9 @@ def test_score_llm_falls_back_to_heuristic_without_keys():
 
 
 def test_score_llm_parses_prose_wrapped_json(monkeypatch=None):
-    r = _rec("X", "y")
+    # Real description so the thin-description cap doesn't interfere with the
+    # parsing/coercion this test is actually exercising.
+    r = _rec("AI Consultant", "We need an AI consultant. " * 12)
     orig = scoring._call_llm
     scoring._call_llm = lambda prompt: (
         'Sure!\n{"lane":"ai-consultant","fit_score":"7","fit_rationale":"good",'
@@ -95,6 +97,20 @@ def test_score_llm_parses_prose_wrapped_json(monkeypatch=None):
     assert res["fit_score"] == 7 and isinstance(res["fit_score"], int)  # "7" coerced
     assert res["fit_rationale"].startswith("[deepseek] ")
     assert len(res["red_flags"]) == 6  # truncated to 6
+
+
+def test_score_llm_thin_description_caps_fit():
+    # A high LLM score on a near-empty description is a guess -> capped at 3.
+    r = _rec("GTM Engineer", "remote")  # < 200 chars of description
+    orig = scoring._call_llm
+    scoring._call_llm = lambda prompt: (
+        '{"lane":"gtm-engineer","fit_score":9,"fit_rationale":"perfect","red_flags":[]}', "m", "deepseek")
+    try:
+        res = score_llm(r)
+    finally:
+        scoring._call_llm = orig
+    assert res["fit_score"] == 3
+    assert "thin description" in res["fit_rationale"].lower()
 
 
 def test_score_llm_bad_lane_falls_back_to_heuristic_lane():

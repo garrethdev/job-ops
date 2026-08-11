@@ -53,5 +53,92 @@ def test_apply_scores_stamps_junk_fit1_without_llm():
     assert junk["red_flags"]
 
 
+# --- artifact / mangled titles (real board examples) -----------------------
+
+def test_mangled_titles_are_junk():
+    # Truncated stubs, bare URLs, location-only, and scraped HN fragments that
+    # were reaching the board at fit 6-7 on a decent snippet.
+    for t in ("Full", "150", "The Role", "Application", "YC 19",
+              "US Fully Remote", "REMOTE (worldwide)", "Remote (US Only)",
+              "https://seeq.com", "https://futo.tech"):
+        assert vetting.is_junk(_rec(t, "Acme")), t
+
+
+def test_hiring_fragment_is_junk():
+    assert vetting.is_junk(_rec("intelligence.com ) is hiring in Boston", "Air Space"))
+    assert vetting.is_junk(_rec("Remote (US, Canada) We're building a platform", "Nova Credit"))
+
+
+def test_short_real_titles_survive():
+    # Legitimate short titles carry a role word and must NOT be flagged.
+    for t in ("GTM Engineer", "Video Editor", "Data Architect", "Fractional CTO",
+              "Growth Strategist", "AI Architect"):
+        assert not vetting.is_junk(_rec(t, "Acme")), t
+
+
+# --- off-lane roles ---------------------------------------------------------
+
+def test_offlane_engineering_is_junk():
+    for t in ("Senior Data Engineer", "Full Stack Engineer", "full stack engineer",
+              "Senior DevOps Engineer", "Backend and Devops Mid", "Staff Frontend Engineer",
+              "Staff Security Engineer", "Product Security Engineer, Application Security",
+              "Architect, Security Products", "Staff Data Scientist", "Applied Data Scientist",
+              "QA Engineer", "Network Engineer"):
+        assert vetting.is_junk(_rec(t, "Acme")), t
+
+
+def test_kept_categories_survive_offlane_gate():
+    # Sales/solutions eng, applied-AI/ML eng, and any architect/consultant stay.
+    for t in ("Senior Sales Engineer", "Sales Engineer (Pre-Sales)",
+              "Remote Senior Sales Engineer - Cybersecurity SaaS",  # sales eng at a security co
+              "ML / AI Engineer", "Applied AI Engineer", "AI Platform Engineer",
+              "LLM Engineer", "AI Solutions Architect", "Staff Software Engineer",
+              "Principal Software Engineer", "Consultant - Compliance Data Science & AI"):
+        assert not vetting.is_junk(_rec(t, "Acme")), t
+
+
+# --- staffing / recruiting firms ------------------------------------------
+
+def test_staffing_firms_are_junk():
+    for co in ("Randstad", "Jobot", "Robert Half", "Synergy Technologies",
+               "Lorven Technologies Inc.", "XCUTIVES INC.", "ResourceTree Global Services",
+               "Acme Staffing", "Foo Recruiting", "Bar Talent Solutions", "Insight Global"):
+        assert vetting.is_junk(_rec("GTM Engineer", co)), co
+
+
+def test_real_employers_are_not_staffing():
+    for co in ("Anthropic", "Stripe", "Clay", "Databricks", "Notion Labs",
+               "Vercel", "Ramp", "Rewind AI"):
+        assert not vetting.is_junk(_rec("GTM Engineer", co)), co
+
+
+# --- geography gate (US + Canada only) ------------------------------------
+
+def _geo(location="", comp="", title="AI Consultant", company="Acme"):
+    return schema.new_record(title=title, company=company, source="board",
+                             location=location, comp=comp)
+
+
+def test_geography_rejects_outside_us_canada():
+    # the exact real failure: senior on-site AI role in Bangalore, paid in rupees
+    assert vetting.is_junk(_geo("Bangalore, India", "INR 2500K-5000K"))
+    assert vetting.is_junk(_geo("London, United Kingdom", "£90,000"))
+    assert vetting.is_junk(_geo("Berlin, Germany", "€85,000"))
+    assert vetting.is_junk(_geo("Remote (India)"))
+    assert vetting.is_junk(_geo("Singapore", "S$120,000"))
+    assert vetting.is_junk(_geo("Bengaluru"))
+    assert vetting.is_junk(_geo(comp="₹ 30,00,000"))          # currency alone
+    assert vetting.is_junk(_geo("Remote - EMEA"))
+    assert vetting.is_junk(_geo("São Paulo, Brazil"))
+
+
+def test_geography_allows_us_and_canada():
+    for loc, comp in [("Austin, TX", "$180k"), ("Remote - US", ""),
+                      ("Toronto, Canada", "CAD 150,000"), ("Remote (US)", "$200,000"),
+                      ("London, KY", "$120k"), ("Vancouver, BC", ""),
+                      ("New York, NY", ""), ("Remote", "$150k"), ("", "")]:
+        assert not vetting.is_junk(_geo(loc, comp)), (loc, comp)
+
+
 if __name__ == "__main__":
     raise SystemExit(tests._bootstrap.run_module(dict(globals())))

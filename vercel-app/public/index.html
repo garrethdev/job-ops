@@ -116,6 +116,7 @@
       <option value="newest">Newest first</option>
       <option value="oldest">Oldest first</option>
       <option value="fit">Best fit</option>
+      <option value="fit_asc">Worst fit</option>
     </select>
   </label>
   <label class="field">Min fit
@@ -138,7 +139,7 @@
     <thead>
       <tr>
         <th class="col-star" aria-label="Warm"></th>
-        <th class="col-fit">Fit</th>
+        <th id="th-fit" class="col-fit" title="click to sort by fit">Fit <span id="fit-caret" class="sort-caret"></span></th>
         <th>Role</th>
         <th>Company</th>
         <th id="th-added" class="col-added" title="click to sort by date">Added <span id="added-caret" class="sort-caret"></span></th>

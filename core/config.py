@@ -39,15 +39,25 @@ _load_dotenv(ROOT / ".env")
 STORE_PATH = ROOT / "store" / "opportunities.jsonl"
 PROFILES_DIR = ROOT / "profiles"
 
-# Fit-score threshold at/above which a record is worth enriching + surfacing.
-DEFAULT_FIT_THRESHOLD = int(os.environ.get("JOBOPS_FIT_THRESHOLD", "6"))
+# Fit-score threshold at/above which a record surfaces on the board. 7+ only:
+# the bar is high on purpose. Quality is enforced in layers - core.vetting blocks
+# off-lane/artifact/staffing before scoring, the thin-description cap in scoring
+# floors unverifiable roles, and this threshold drops anything under 7.
+DEFAULT_FIT_THRESHOLD = int(os.environ.get("JOBOPS_FIT_THRESHOLD", "7"))
+
+# Hard cap on how many NEW leads surface per daily run. Extras that clear the bar
+# are held ('deferred') and auto-promoted on a later, quieter day - a genuine 8/10
+# is never thrown away, it just waits its turn. Keeps the board curated, not a
+# firehose. See modules.web_checker.run._apply_daily_cap.
+DAILY_NEW_CAP = int(os.environ.get("JOBOPS_DAILY_CAP", "5"))
 
 # Target role categories (the `lane` field). Single source of truth: schema
 # validation, scoring, digest grouping, and profile filenames all key off this.
 # Each value maps to profiles/<lane>.md.
 LANES = ("gtm-engineer", "software-architect", "ai-consultant", "ai-video-editor")
 SOURCES = ("email", "board", "marketplace")
-STATUSES = ("new", "enriched", "queued_for_apply", "applied", "rejected")
+# 'deferred' = cleared the bar but over today's cap; held for a quieter day.
+STATUSES = ("new", "deferred", "enriched", "queued_for_apply", "applied", "rejected")
 
 # Only remote or hybrid roles are wanted. Scoring boosts remote/hybrid and treats
 # on-site-only / relocation-required as deal-breakers (see the profiles).

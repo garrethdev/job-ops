@@ -36,6 +36,7 @@ export function sortLeads(list, mode) {
     newest: byNew,
     oldest: (a, b) => String(a.first_seen || "").localeCompare(String(b.first_seen || "")),
     fit: (a, b) => (b.fit_score || 0) - (a.fit_score || 0) || byNew(a, b),
+    fit_asc: (a, b) => (a.fit_score || 0) - (b.fit_score || 0) || byNew(a, b),
   }[mode] || byNew;
   list.sort(cmp);
   return list;

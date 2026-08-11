@@ -23,7 +23,11 @@ TABLE = "jobops_leads"
 COLS = ["id", "schema_version", "lane", "source", "source_detail", "title", "company",
         "url", "location", "comp", "posted", "first_seen", "last_seen", "fit_score",
         "fit_rationale", "red_flags", "contact", "notes", "status", "snippet",
-        "outreached_at"]
+        "outreached_at", "company_summary", "company_remote", "company_hq"]
+
+# Statuses that never belong on the board: rejected (junk) and deferred (backlog,
+# waiting for a quieter day). They stay in the local store but aren't published.
+SKIP_STATUS = {"rejected", "deferred"}
 
 
 def _headers():
@@ -63,7 +67,8 @@ def main() -> int:
         return 2
     recs = store.load()
     have = existing_ids()
-    new = [to_row(r) for r in recs if r.get("id") not in have]
+    new = [to_row(r) for r in recs
+           if r.get("id") not in have and r.get("status") not in SKIP_STATUS]
     print(f"store={len(recs)} already_in_supabase={len(have)} to_insert={len(new)}")
     for i in range(0, len(new), 100):
         chunk = new[i:i + 100]

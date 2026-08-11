@@ -1,7 +1,7 @@
 import tests._bootstrap  # noqa: F401
 
 from core import schema
-from modules.web_checker.run import _needs_page
+from modules.web_checker.run import _finalize_status, _needs_page
 
 
 def _rec(title, company="Acme AI", snippet=""):
@@ -30,6 +30,23 @@ def test_off_lane_title_is_skipped():
     # No lane signal in the title -> don't spend a page fetch on it.
     assert not _needs_page(_rec("Registered Nurse", company="Hospital"))
     assert not _needs_page(_rec("Warehouse Associate", company="Logistics Co"))
+
+
+def test_finalize_status_rejects_below_threshold():
+    strong = _rec("GTM Engineer"); strong["fit_score"] = 8; strong["lane"] = "gtm-engineer"
+    weak = _rec("GTM Engineer"); weak["fit_score"] = 6; weak["lane"] = "gtm-engineer"
+    junk = _rec("Multiple Roles", company="DuckDuckGo"); junk["fit_score"] = 1
+    n = _finalize_status([strong, weak, junk], threshold=7)
+    assert n == 2
+    assert strong["status"] == "new"
+    assert weak["status"] == "rejected" and junk["status"] == "rejected"
+
+
+def test_finalize_status_never_touches_advanced_leads():
+    # A user-advanced lead (applied/queued) is never auto-rejected, even if low.
+    r = _rec("GTM Engineer"); r["fit_score"] = 4; r["lane"] = "gtm-engineer"; r["status"] = "applied"
+    assert _finalize_status([r], threshold=7) == 0
+    assert r["status"] == "applied"
 
 
 if __name__ == "__main__":

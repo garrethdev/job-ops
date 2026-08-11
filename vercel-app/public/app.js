@@ -70,8 +70,9 @@ function render() {
     (!q || (x.title + " " + x.company).toLowerCase().includes(q)));
   const sortMode = $("#f-sort") ? $("#f-sort").value : "newest";
   sortLeads(list, sortMode);
-  const caret = $("#added-caret");
-  if (caret) caret.textContent = sortMode === "newest" ? "↓" : sortMode === "oldest" ? "↑" : "";
+  const setCaret = (id, s) => { const c = $(id); if (c) c.textContent = s; };
+  setCaret("#added-caret", sortMode === "newest" ? "↓" : sortMode === "oldest" ? "↑" : "");
+  setCaret("#fit-caret", sortMode === "fit" ? "↓" : sortMode === "fit_asc" ? "↑" : "");
   $("#count").textContent = list.length + (currentTab === "warm" ? " warm" : " / " + LEADS.length) + " leads";
   $("#empty").hidden = list.length > 0;
   for (const x of list) rows.appendChild(rowEl(x));
@@ -335,6 +336,9 @@ function openDetail(id) {
     ${url
       ? `<a class="d-link" href="${esc(url)}" target="_blank" rel="noopener noreferrer">View original posting ↗</a>`
       : `<a class="d-link" href="https://www.google.com/search?q=${encodeURIComponent('"' + (x.title || '') + '" ' + (x.company || '') + ' job apply')}" target="_blank" rel="noopener noreferrer">Find this posting ↗</a>`}
+    ${(x.company_summary || x.company_remote || x.company_hq) ? `<div class="d-section"><h4>Company</h4>
+      ${x.company_summary ? `<div class="d-rationale">${esc(x.company_summary)}</div>` : ""}
+      ${(x.company_remote || x.company_hq) ? `<div class="d-meta" style="margin-top:6px">${x.company_remote ? `<span class="d-tag">${esc(x.company_remote)}</span>` : ""}${x.company_hq ? `<span class="d-tag">${esc(x.company_hq)}</span>` : ""}</div>` : ""}</div>` : ""}
     ${x.fit_rationale ? `<div class="d-section"><h4>Why it fits</h4><div class="d-rationale">${esc(stripTag(x.fit_rationale))}</div></div>` : ""}
     ${(x.red_flags || []).length ? `<div class="d-section"><h4>Flags</h4><div class="d-flag">⚠ ${esc(x.red_flags.join("; "))}</div></div>` : ""}
     <div class="d-section"><h4>About the role</h4>
@@ -413,6 +417,10 @@ async function findContactSearch() {
 ["#f-lane", "#f-stage", "#f-sort", "#f-min", "#f-enriched", "#f-q"].forEach((s) => $(s).addEventListener("input", render));
 $("#th-added") && $("#th-added").addEventListener("click", () => {  // click the column to re-sort by date
   $("#f-sort").value = $("#f-sort").value === "newest" ? "oldest" : "newest";
+  render();
+});
+$("#th-fit") && $("#th-fit").addEventListener("click", () => {  // click the column to re-sort by fit
+  $("#f-sort").value = $("#f-sort").value === "fit" ? "fit_asc" : "fit";
   render();
 });
 $("#pw") && $("#pw").addEventListener("keydown", (e) => { if (e.key === "Enter") submitPw(); });

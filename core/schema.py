@@ -97,6 +97,10 @@ def new_record(
         "notes": "",
         "snippet": snippet,
         "status": "new",
+        # Company-level research (filled by web_checker.company via Firecrawl).
+        "company_summary": "",   # one line: what the company does
+        "company_remote": "",    # remote | hybrid | onsite | unknown
+        "company_hq": "",        # HQ city/country
     }
 
 
@@ -132,7 +136,9 @@ def validate(record: Dict[str, Any]) -> List[str]:
         # lane may be empty ("") only while status == new (pre-scoring)
         if record["lane"] and record["lane"] not in LANES:
             errs.append(f"invalid lane: {record['lane']!r}")
-        if record["lane"] == "" and record["status"] != "new":
+        # lane may be empty ("") only while status == new (pre-scoring) or when a
+        # record has been rejected (junk/off-lane never gets a meaningful lane).
+        if record["lane"] == "" and record["status"] not in ("new", "rejected"):
             errs.append("lane must be set once status advances past 'new'")
         if not isinstance(record["fit_score"], int) or not (0 <= record["fit_score"] <= 10):
             errs.append(f"fit_score out of range: {record['fit_score']!r}")
