@@ -57,21 +57,30 @@ jobs:
         run: |
           git config user.name  "job-ops-bot"
           git config user.email "job-ops-bot@users.noreply.github.com"
-          if git diff --quiet -- store/opportunities.jsonl; then
+          # Persist BOTH the opportunity store and the company-research cache, so
+          # companies are never re-researched (re-billed on Firecrawl) each run.
+          # companies.jsonl may not exist on the very first run.
+          stage() { git add store/opportunities.jsonl; git add store/companies.jsonl 2>/dev/null || true; }
+          save() { for f in store/opportunities.jsonl store/companies.jsonl; do
+                     [ -f "$f" ] && { mkdir -p "$RUNNER_TEMP/$(dirname "$f")"; cp "$f" "$RUNNER_TEMP/$f"; }; done; }
+          restore() { for f in store/opportunities.jsonl store/companies.jsonl; do
+                        [ -f "$RUNNER_TEMP/$f" ] && cp "$RUNNER_TEMP/$f" "$f"; done; }
+          stage
+          if git diff --cached --quiet; then
             echo "store unchanged, nothing to commit"; exit 0
           fi
           # Another cron (or a manual push) may have moved the remote. Rebase our
           # freshly-computed store onto the latest remote and retry, so a moved
           # remote never fails the run ('! [rejected] main -> main (fetch first)').
           branch="${GITHUB_REF_NAME:-main}"
-          cp store/opportunities.jsonl "$RUNNER_TEMP/ours.jsonl"
+          save
           for i in 1 2 3 4 5; do
             git fetch origin "$branch" && git reset --hard "origin/$branch"
-            cp "$RUNNER_TEMP/ours.jsonl" store/opportunities.jsonl
-            if git diff --quiet -- store/opportunities.jsonl; then
+            restore
+            stage
+            if git diff --cached --quiet; then
               echo "store already current on remote"; exit 0
             fi
-            git add store/opportunities.jsonl
             git commit -m "web-check: update store ($(date -u +%Y-%m-%dT%H:%MZ))"
             if git push; then echo "pushed on attempt $i"; exit 0; fi
             echo "push rejected (remote moved) — retry $i"; sleep $((i * 2))
