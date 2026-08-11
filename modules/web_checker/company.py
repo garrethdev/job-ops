@@ -27,12 +27,24 @@ SEARCH_API = "https://api.firecrawl.dev/v1/search"
 SCRAPE_API = "https://api.firecrawl.dev/v1/scrape"
 CACHE_PATH = ROOT / "store" / "companies.jsonl"
 
-# Hosts that are NOT a company's own site (so a search hit here isn't the site).
+# Hosts that are NOT a company's own site: if the job link (or a search hit) is on
+# one of these, it's an aggregator/ATS/social page, so we search for the real
+# company site instead of scraping the board and describing the board by mistake.
 _NOT_COMPANY_SITE = (
-    "linkedin.com", "indeed.", "glassdoor.", "ziprecruiter.", "wellfound.",
-    "crunchbase.", "wikipedia.", "youtube.", "facebook.", "twitter.", "x.com",
+    # social / reference
+    "linkedin.com", "crunchbase.", "wikipedia.", "youtube.", "facebook.",
+    "twitter.", "x.com", "google.com", "bing.com", "reddit.com", "medium.com",
+    "github.com", "substack.com",
+    # job boards / aggregators (incl. our own sources)
+    "indeed.", "glassdoor.", "ziprecruiter.", "wellfound.", "angel.co", "otta.",
+    "themuse.com", "nextplay.so", "remoteok", "weworkremotely", "himalayas",
+    "workatastartup", "ycombinator.com", "aijobs.net", "dice.com", "monster.com",
+    "simplyhired", "remotive", "jobright", "builtin", "gofractional",
+    "levels.fyi", "hnhiring", "ycombinator", "flexjobs", "jobs.ashby",
+    # ATS / applicant-tracking (a posting host, not the company)
     "greenhouse.io", "lever.co", "ashbyhq.com", "workable.com", "myworkdayjobs.com",
-    "builtin", "google.com", "bing.com", "reddit.com", "medium.com", "github.com",
+    "smartrecruiters.com", "jobvite.com", "breezy.hr", "recruitee.com",
+    "teamtailor.com", "rippling.com", "bamboohr.com", "paylocity.com",
 )
 
 _FIELDS = ("company_summary", "company_remote", "company_hq")

@@ -54,7 +54,7 @@ def _touched(r: dict) -> bool:
 
 def load_board() -> list:
     out, page = [], 0
-    cols = "id,title,company,url,warm,stage,notes,contact,status"
+    cols = "id,title,company,url,fit_score,warm,stage,notes,contact,status"
     while True:
         rows = _req("GET", f"/rest/v1/{TABLE}?select={cols}&status=neq.rejected&limit=1000&offset={page*1000}")
         out.extend(rows)
@@ -75,10 +75,14 @@ def main() -> int:
         key = normalize_company(r.get("company", ""))
         if key:
             by_company[key].append(r)
-    companies = [(k, rows[0].get("company", ""), rows[0].get("url", "")) for k, rows in by_company.items()]
+    # Rank companies by their best lead's fit, so --limit N researches the TOP N.
+    ranked = sorted(by_company.items(),
+                    key=lambda kv: max((r.get("fit_score") or 0) for r in kv[1]),
+                    reverse=True)
+    companies = [(k, rows[0].get("company", ""), rows[0].get("url", "")) for k, rows in ranked]
     if limit:
         companies = companies[:limit]
-    print(f"board={len(board)} unique_companies={len(by_company)} researching={len(companies)}")
+    print(f"board={len(board)} unique_companies={len(by_company)} researching={len(companies)} (top by fit)")
 
     cache = load_cache()
     profiles = {}
@@ -91,8 +95,10 @@ def main() -> int:
         list(ex.map(do, companies))
 
     stats = Counter()
+    rejected, samples = [], []
     for key, prof in profiles.items():
         rows = by_company[key]
+        name = rows[0].get("company", "")
         patch = {k: prof.get(k, "") for k in ("company_summary", "company_remote", "company_hq")}
         reject = None
         if prof.get("is_staffing"):
@@ -100,6 +106,10 @@ def main() -> int:
         elif prof.get("company_remote") == "onsite":
             reject = "company is on-site only (remote/hybrid required)"
         stats["researched" if prof.get("researched") else "no_data"] += 1
+        if reject:
+            rejected.append(f"{name} -> {reject}")
+        elif prof.get("company_summary") and len(samples) < 8:
+            samples.append(f"{name}: {prof['company_summary']} [{prof.get('company_remote','?')}]")
         for r in rows:
             body = dict(patch)
             if reject and not _touched(r):
@@ -111,6 +121,14 @@ def main() -> int:
     print("\nresult:")
     for k, v in stats.most_common():
         print(f"  {v:4d}  {k}")
+    if samples:
+        print("\nsample profiles:")
+        for s in samples:
+            print(f"  - {s}")
+    if rejected:
+        print("\nrejected by company gate:")
+        for s in rejected:
+            print(f"  - {s}")
     return 0
 
 
