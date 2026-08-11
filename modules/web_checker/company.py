@@ -16,6 +16,7 @@ best-effort: any failure returns an empty profile and never sinks the run.
 from __future__ import annotations
 
 import json
+import re
 import urllib.request
 from pathlib import Path
 from typing import Any, Dict
@@ -41,6 +42,8 @@ _NOT_COMPANY_SITE = (
     "workatastartup", "ycombinator.com", "aijobs.net", "dice.com", "monster.com",
     "simplyhired", "remotive", "jobright", "builtin", "gofractional",
     "levels.fyi", "hnhiring", "ycombinator", "flexjobs", "jobs.ashby",
+    "jobilize", "tealhq", "teal.com", "jora.com", "adzuna", "talent.com",
+    "jobstreet", "naukri", "snagajob", "lensa", "jobcase",
     # ATS / applicant-tracking (a posting host, not the company)
     "greenhouse.io", "lever.co", "ashbyhq.com", "workable.com", "myworkdayjobs.com",
     "smartrecruiters.com", "jobvite.com", "breezy.hr", "recruitee.com",
@@ -48,6 +51,16 @@ _NOT_COMPANY_SITE = (
 )
 
 _FIELDS = ("company_summary", "company_remote", "company_hq")
+
+# If the extracted summary reads like a job board / resume tool / ATS, the site
+# resolution landed on the wrong site (a search hit for a same-named board), so
+# the whole profile - including is_staffing - is untrustworthy and is discarded.
+_WRONG_SITE_SUMMARY = re.compile(
+    r"job (search|board|site|listing)|find (jobs|your next)|world-class job|"
+    r"resume|applicant tracking|hiring platform|recruiting platform|"
+    r"career (site|platform|marketplace)|connects job seekers|job seekers",
+    re.I,
+)
 
 _SCHEMA = {
     "type": "object",
@@ -178,6 +191,11 @@ def research_company(name: str, hint_url: str = "", cache: Dict[str, Dict[str, A
         return _empty()
     url = _company_site(name, hint_url)
     fields = _profile_to_fields(url, _scrape_profile(url)) if url else _empty()
+    # Guard: if the summary reads like a job board, we resolved to the wrong site
+    # (a same-named board) - drop the profile so it can't mis-describe or wrongly
+    # flag the company as staffing.
+    if _WRONG_SITE_SUMMARY.search(fields.get("company_summary", "")):
+        fields = _empty()
     rec = {"key": key, "name": name, "ts": now_iso(), **fields}
     _append_cache(rec)
     if cache is not None:
