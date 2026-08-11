@@ -221,6 +221,7 @@ a:hover { color: var(--accent-strong); text-decoration: underline; }
 .lane--ai-video-editor   { background: #fdeaf2; color: #be185d; }
 .lane--product-lead      { background: #fdf0e0; color: #b45309; }
 .lane--marketing-lead    { background: #e5f5fb; color: #0e7490; }
+.lane--yc_gtm            { background: #ffedd5; color: #c2410c; }
 
 /* contact cell with avatar */
 .contact { display: flex; gap: 11px; align-items: flex-start; }
