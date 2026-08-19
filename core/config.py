@@ -53,9 +53,15 @@ DAILY_NEW_CAP = int(os.environ.get("JOBOPS_DAILY_CAP", "5"))
 
 # Target role categories (the `lane` field). Single source of truth: schema
 # validation, scoring, digest grouping, and profile filenames all key off this.
-# Each value maps to profiles/<lane>.md.
-LANES = ("gtm-engineer", "software-architect", "ai-consultant", "ai-video-editor")
-SOURCES = ("email", "board", "marketplace")
+# The first four map to profiles/<lane>.md and are what scoring can assign.
+# 'recruiter' / 'yc_gtm' / 'lookup' are app-owned lanes written by the Vercel
+# dashboard (recruiter-direct + YC GTM pipelines, ad-hoc lookups); they have no
+# profile file, so they must stay APPENDED here — scoring's no-hit tie-break
+# picks the first lane in this tuple and empty keyword lists never win a max().
+LANES = ("gtm-engineer", "software-architect", "ai-consultant", "ai-video-editor",
+         "recruiter", "yc_gtm", "lookup")
+# 'manual' and 'recruiter-direct' are app-owned sources (dashboard-entered rows).
+SOURCES = ("email", "board", "marketplace", "manual", "recruiter-direct")
 # 'deferred' = cleared the bar but over today's cap; held for a quieter day.
 STATUSES = ("new", "deferred", "enriched", "queued_for_apply", "applied", "rejected")
 

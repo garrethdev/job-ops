@@ -17,7 +17,9 @@ permissions:
   issues: write
 
 concurrency:
-  group: web-check
+  # Shared group with email-scan: both commit the store back to the repo, so
+  # GitHub must serialize them or their pushes race and clobber each other.
+  group: store-writers
   cancel-in-progress: false
 
 jobs:

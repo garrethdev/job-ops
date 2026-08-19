@@ -5,6 +5,7 @@ from pathlib import Path
 import tests._bootstrap  # noqa: F401
 
 from core import schema, store
+import modules.web_checker.company as company
 import modules.web_checker.run as run
 from modules.web_checker.company import _profile_to_fields
 
@@ -112,6 +113,68 @@ def test_profile_to_fields_normalizes_remote():
     assert f["company_remote"] == "remote" and f["is_staffing"] is True and f["researched"]
     bad = _profile_to_fields("https://x.com", {"remote_policy": "flexible"})  # not an enum value
     assert bad["company_remote"] == "unknown"
+
+
+# --- research cache: only settled outcomes are cached -----------------------
+
+def _run_research(post, hint_url):
+    """Call research_company with _post/_append_cache/firecrawl_key swapped out.
+    Returns (fields, appended_cache_recs, cache_dict)."""
+    appended = []
+    cache = {}
+    orig_p, orig_a, orig_k = company._post, company._append_cache, company.firecrawl_key
+    company._post = post
+    company._append_cache = lambda rec, path=None: appended.append(rec)
+    company.firecrawl_key = lambda: "test-key"
+    try:
+        fields = company.research_company("Acme AI", hint_url=hint_url, cache=cache)
+    finally:
+        company._post, company._append_cache, company.firecrawl_key = orig_p, orig_a, orig_k
+    return fields, appended, cache
+
+
+def test_search_failure_not_cached(monkeypatch=None):
+    # Transient search error: return empty but do NOT freeze the company forever.
+    def boom(url, body, timeout=90): raise RuntimeError("firecrawl 502")
+    # hint on a blocked host forces the search path
+    f, appended, cache = _run_research(boom, "https://linkedin.com/company/acme")
+    assert f["researched"] is False
+    assert appended == [] and cache == {}  # retried on the next role, not frozen
+
+
+def test_scrape_failure_not_cached(monkeypatch=None):
+    # Good hint URL (no search), but the scrape call dies: same rule, no caching.
+    def boom(url, body, timeout=90): raise RuntimeError("timeout")
+    f, appended, cache = _run_research(boom, "https://acme.ai")
+    assert f["researched"] is False
+    assert appended == [] and cache == {}
+
+
+def test_no_site_found_is_cached(monkeypatch=None):
+    # Search SUCCEEDS but every hit is a blocked host: genuine empty -> cached.
+    post = lambda url, body, timeout=90: {"data": [{"url": "https://linkedin.com/x"}]}
+    f, appended, cache = _run_research(post, "https://linkedin.com/company/acme")
+    assert f["researched"] is False
+    assert len(appended) == 1 and schema.normalize_company("Acme AI") in cache
+
+
+def test_successful_profile_cached(monkeypatch=None):
+    post = lambda url, body, timeout=90: {"data": {"json": {
+        "summary": "AI sales tools", "remote_policy": "remote", "hq": "NYC",
+        "is_staffing_agency": False}}}
+    f, appended, cache = _run_research(post, "https://acme.ai")
+    assert f["researched"] is True and f["company_summary"] == "AI sales tools"
+    assert len(appended) == 1 and appended[0]["company_remote"] == "remote"
+
+
+def test_wrong_site_summary_guard_kept_and_cached(monkeypatch=None):
+    # Scrape works but the summary reads like a job board: profile dropped (guard
+    # kept) and the empty IS cached - re-scraping the same wrong site is futile.
+    post = lambda url, body, timeout=90: {"data": {"json": {
+        "summary": "A world-class job board for engineers", "remote_policy": "remote"}}}
+    f, appended, cache = _run_research(post, "https://acme.ai")
+    assert f["researched"] is False and f["company_summary"] == ""
+    assert len(appended) == 1
 
 
 if __name__ == "__main__":

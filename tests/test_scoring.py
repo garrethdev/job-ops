@@ -1,5 +1,7 @@
 import tests._bootstrap  # noqa: F401
 
+import contextlib
+import io
 import os
 
 from core import schema, scoring
@@ -135,10 +137,6 @@ def test_llm_backend_selection():
         assert scoring._llm_backend() == (None, None, None)
 
 
-if __name__ == "__main__":
-    raise SystemExit(tests._bootstrap.run_module(dict(globals())))
-
-
 def test_ignore_location_skips_location_dealbreaker():
     # Default: an on-site-only posting trips the location deal-breaker red flag.
     base = _rec("Solutions Architect", "on-site only, in-office, dallas")
@@ -178,3 +176,48 @@ def test_llm_network_error_falls_back(monkeypatch=None):
         assert "heuristic" in r["fit_rationale"].lower()
     finally:
         scoring._call_llm = orig
+
+
+def test_llm_error_tagged_with_exception_class():
+    # An LLM exception must be distinguishable from "no key configured".
+    def boom(prompt): raise TimeoutError("api down")
+    orig = scoring._call_llm
+    scoring._call_llm = boom
+    try:
+        res = score_llm(_rec("Software Architect", "system design kubernetes remote"))
+    finally:
+        scoring._call_llm = orig
+    assert res["fit_rationale"].startswith("[LLM error: TimeoutError -> heuristic] ")
+    assert not res["fit_rationale"].startswith("[no LLM")
+
+
+def test_apply_scores_warns_on_llm_errors():
+    # A batch with LLM failures must print one WARNING (with the count) to stderr
+    # so cron logs surface the outage.
+    def boom(prompt): raise RuntimeError("network down")
+    recs = [_rec("GTM Engineer", "growth engineer hubspot integrations remote"),
+            _rec("AI Consultant", "ai consultant genai llm advisory remote")]
+    orig = scoring._call_llm
+    scoring._call_llm = boom
+    buf = io.StringIO()
+    try:
+        with contextlib.redirect_stderr(buf):
+            apply_scores(recs, use_llm=True)
+    finally:
+        scoring._call_llm = orig
+    err = buf.getvalue()
+    assert "WARNING" in err and "2" in err
+    assert all(r["fit_rationale"].startswith("[LLM error: RuntimeError") for r in recs)
+
+
+def test_apply_scores_no_warning_without_llm_errors():
+    # Heuristic-only batches (and clean LLM batches) must stay silent on stderr.
+    r = _rec("GTM Engineer", "growth engineer hubspot integrations remote")
+    buf = io.StringIO()
+    with contextlib.redirect_stderr(buf):
+        apply_scores([r])
+    assert "WARNING" not in buf.getvalue()
+
+
+if __name__ == "__main__":
+    raise SystemExit(tests._bootstrap.run_module(dict(globals())))

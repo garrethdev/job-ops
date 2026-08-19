@@ -19,7 +19,7 @@ import json
 import re
 import urllib.request
 from pathlib import Path
-from typing import Any, Dict
+from typing import Any, Dict, Tuple
 
 from core.config import ROOT, firecrawl_key
 from core.schema import normalize_company, now_iso
@@ -107,30 +107,36 @@ def _root(url: str) -> str:
     return f"{scheme}://{host}"
 
 
-def _company_site(name: str, hint_url: str) -> str:
-    """Best guess at the company's own homepage URL, '' if none."""
+def _company_site(name: str, hint_url: str) -> Tuple[str, bool]:
+    """Best guess at the company's own homepage URL.
+
+    Returns (url, search_ok). url is '' when no site was found; search_ok is
+    False only when the search call itself failed (transient), so '' with
+    search_ok=True means the search worked and there genuinely is no site."""
     hint = _root(hint_url)
     if hint and not any(b in hint for b in _NOT_COMPANY_SITE):
-        return hint
+        return hint, True
     try:
         data = _post(SEARCH_API, {"query": f"{name} official company website", "limit": 5})
     except Exception:
-        return ""
+        return "", False
     for r in (data.get("data") or data.get("results") or []):
         link = r.get("url") or r.get("link") or ""
         if link and not any(b in link.lower() for b in _NOT_COMPANY_SITE):
-            return _root(link)
-    return ""
+            return _root(link), True
+    return "", True
 
 
-def _scrape_profile(url: str) -> Dict[str, Any]:
+def _scrape_profile(url: str) -> Dict[str, Any] | None:
+    """Extract a profile from the company's site. None means the scrape itself
+    failed (transient), distinct from a successful scrape yielding no data."""
     try:
         data = _post(SCRAPE_API, {
             "url": url, "formats": ["json"], "onlyMainContent": True,
             "jsonOptions": {"prompt": _PROMPT, "schema": _SCHEMA},
         })
     except Exception:
-        return {}
+        return None
     return ((data.get("data") or {}).get("json") or {}) or {}
 
 
@@ -180,7 +186,12 @@ def _append_cache(rec: Dict[str, Any], path: Path = CACHE_PATH) -> None:
 
 def research_company(name: str, hint_url: str = "", cache: Dict[str, Dict[str, Any]] | None = None) -> Dict[str, Any]:
     """Return a company profile dict, using the cache and Firecrawl. Best-effort:
-    returns an empty (researched=False) profile on any failure or missing key."""
+    returns an empty (researched=False) profile on any failure or missing key.
+
+    Only settled outcomes are cached: a real profile, or a genuine 'no site
+    found' after a successful search. Transient failures (search/scrape
+    exceptions) are NOT cached, so a company that failed once is retried the
+    next time one of its roles shows up instead of being frozen forever."""
     key = normalize_company(name)
     if not key:
         return _empty()
@@ -189,8 +200,16 @@ def research_company(name: str, hint_url: str = "", cache: Dict[str, Dict[str, A
         return {k: v for k, v in cache[key].items() if k not in ("key", "name", "ts")}
     if not firecrawl_key():
         return _empty()
-    url = _company_site(name, hint_url)
-    fields = _profile_to_fields(url, _scrape_profile(url)) if url else _empty()
+    url, search_ok = _company_site(name, hint_url)
+    if url:
+        prof = _scrape_profile(url)
+        if prof is None:  # scrape failed (transient) -> don't cache, retry later
+            return _empty()
+        fields = _profile_to_fields(url, prof)
+    elif search_ok:  # search worked, genuinely no site -> cacheable empty
+        fields = _empty()
+    else:  # search failed (transient) -> don't cache, retry later
+        return _empty()
     # Guard: if the summary reads like a job board, we resolved to the wrong site
     # (a same-named board) - drop the profile so it can't mis-describe or wrongly
     # flag the company as staffing.

@@ -8,11 +8,17 @@ function headers(extra) {
   return { apikey: KEY, Authorization: `Bearer ${KEY}`, "Content-Type": "application/json", ...(extra || {}) };
 }
 
+// Upstream error bodies can be huge (full HTML error pages); keep thrown
+// messages short so logs/toasts don't balloon.
+async function errText(r) {
+  return (await r.text()).slice(0, 200);
+}
+
 export async function listLeads() {
   // Hide rejected leads from the board (soft-delete keeps them for learning).
   const q = "select=*&status=neq.rejected&order=fit_score.desc,last_seen.desc";
   const r = await fetch(`${URL}/rest/v1/jobops_leads?${q}`, { headers: headers() });
-  if (!r.ok) throw new Error(`supabase list ${r.status}: ${await r.text()}`);
+  if (!r.ok) throw new Error(`supabase list ${r.status}: ${await errText(r)}`);
   return r.json();
 }
 
@@ -22,7 +28,7 @@ export async function insertLead(row) {
     headers: headers({ Prefer: "return=representation,resolution=merge-duplicates" }),
     body: JSON.stringify([row]),
   });
-  if (!r.ok) throw new Error(`supabase insert ${r.status}: ${await r.text()}`);
+  if (!r.ok) throw new Error(`supabase insert ${r.status}: ${await errText(r)}`);
   const a = await r.json();
   return a[0] || row;
 }
@@ -38,7 +44,7 @@ export async function patchLead(id, patch) {
   const r = await fetch(`${URL}/rest/v1/jobops_leads?id=eq.${encodeURIComponent(id)}`, {
     method: "PATCH", headers: headers({ Prefer: "return=representation" }), body: JSON.stringify(patch),
   });
-  if (!r.ok) throw new Error(`supabase patch ${r.status}: ${await r.text()}`);
+  if (!r.ok) throw new Error(`supabase patch ${r.status}: ${await errText(r)}`);
   const a = await r.json();
   return a[0] || null;
 }

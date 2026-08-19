@@ -106,7 +106,7 @@ function rowEl(x) {
     <td>${safeUrl(x.url) ? `<a href="${esc(safeUrl(x.url))}" target="_blank" rel="noopener noreferrer">${esc(x.company)} ↗</a>` : esc(x.company)}
         <div class="loc">${esc(x.location || "")}</div></td>
     <td class="date-in" title="${esc(x.first_seen || "")}">${esc(fmtDate(x.first_seen))}</td>
-    <td><span class="lane lane--${esc(x.lane || "none")}">${laneLabel(x.lane)}</span></td>
+    <td><span class="lane lane--${esc(x.lane || "none")}">${esc(laneLabel(x.lane))}</span></td>
     <td>${contactHtml}</td>
     <td><div class="notes__disp" title="click to edit">${esc(x.notes) || '<span class="muted">+ note</span>'}</div></td>
     <td class="stage">${stageCell(x)}</td>
@@ -332,7 +332,7 @@ function openDetail(id) {
       <span class="score ${scoreClass(x.fit_score)}">${x.fit_score ?? "·"}</span>
       <div>
         <div class="d-title">${esc(x.title)}</div>
-        <div class="d-company">${esc(x.company)} · <span class="lane lane--${esc(x.lane || "none")}">${laneLabel(x.lane)}</span></div>
+        <div class="d-company">${esc(x.company)} · <span class="lane lane--${esc(x.lane || "none")}">${esc(laneLabel(x.lane))}</span></div>
       </div>
     </div>
     <div class="d-meta">${meta || '<span class="d-tag">no location/comp captured</span>'}

@@ -102,11 +102,13 @@ _LOCATION_ONLY = re.compile(r"^\s*(remote|hybrid|on-?site|fully remote|us(a)?|u\
 def _artifact_reason(title: str) -> str:
     """Return a reason if the title is a scraping artifact, not a real role."""
     t = re.sub(r"\s+", " ", title).strip()
-    if _URL_TITLE.search(t):
+    has_role = bool(_HAS_ROLE.search(t))
+    # A domain is only an artifact when no role word rides along: "Scale.ai
+    # Forward Deployed Engineer" is a real role, "jobs.lever.co/acme" is not.
+    if _URL_TITLE.search(t) and not has_role:
         return "title is a URL/domain, not a role"
     if _HIRING_FRAGMENT.search(t):
         return "title is a scraped hiring/HN fragment, not a role"
-    has_role = bool(_HAS_ROLE.search(t))
     if not has_role:
         # No role word at all: a truncated stub ("Full", "150", "The Role"),
         # a bare location ("US Fully Remote"), or a 1-3 word fragment.
@@ -193,7 +195,8 @@ _ALLOW_CODES = (
 )
 _US_CA_ALLOW = re.compile(
     r",\s*(" + "|".join(_ALLOW_CODES) + r")\b"
-    r"|\b(united states|u\.?s\.?a\.?|usa|u\.s\.|us|america|americas|"
+    r"|\b(united states|u\.?s\.?a\.?|usa|u\.s\.|us|"
+    # NOTE: no bare "america(s)" - it would allow "Latin America" / "South America"
     r"north america|canada|canadian|remote\s*[-,/]?\s*(us|usa|united states|canada|na))\b",
     re.I,
 )
@@ -219,7 +222,7 @@ _FOREIGN_COUNTRY = re.compile(
     # Africa / Middle East
     r"morocco|algeria|tunisia|ghana|uganda|tanzania|ethiopia|rwanda|"
     r"mauritius|jordan|lebanon|"
-    r"emea|apac|latam|latin america|mena|europe|middle east)\b",
+    r"emea|apac|latam|latin america|south america|central america|mena|europe|middle east)\b",
     re.I,
 )
 # Foreign cities (given without a country). Rejected unless a US/Canada state

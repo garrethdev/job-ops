@@ -1,9 +1,13 @@
 #!/usr/bin/env python3
 """Push the local JSONL store into Supabase (jobops_leads).
 
-Inserts only NEW leads (ids not already in Supabase), so edits made in the
-dashboard (contact, notes, status) are never clobbered. Run after a scan to
-publish fresh leads to the deployed dashboard.
+Upserts every eligible lead through the jobops_upsert_discovery RPC: new ids
+are inserted (status='new', stage='new'), existing ids get ONLY their
+pipeline-owned discovery fields refreshed (title/score/company research/...),
+so re-scoring and Firecrawl company research reach rows already on the board.
+Dashboard-owned fields (status, stage, notes, contact, warm, outreached_at,
+updated_at) are never sent, so edits made in the dashboard are never clobbered.
+Run after a scan or re-score to publish fresh data to the deployed dashboard.
 
 Needs SUPABASE_URL and SUPABASE_SERVICE_KEY in the environment (.env).
 """
@@ -19,11 +23,22 @@ sys.path.insert(0, str(Path(__file__).resolve().parent.parent))
 import core.config  # noqa: E402  (loads .env)
 from core import store  # noqa: E402
 
-TABLE = "jobops_leads"
-COLS = ["id", "schema_version", "lane", "source", "source_detail", "title", "company",
-        "url", "location", "comp", "posted", "first_seen", "last_seen", "fit_score",
-        "fit_rationale", "red_flags", "contact", "notes", "status", "snippet",
-        "outreached_at", "company_summary", "company_remote", "company_hq"]
+RPC = "jobops_upsert_discovery"
+
+# Pipeline-owned discovery fields: the ONLY columns the RPC updates on rows
+# that already exist in Supabase.
+DISCOVERY_COLS = ["title", "company", "url", "location", "comp", "posted",
+                  "last_seen", "fit_score", "fit_rationale", "red_flags", "snippet",
+                  "company_summary", "company_remote", "company_hq"]
+
+# Insert-only provenance: sent so brand-new rows land with identity intact;
+# the RPC ignores these on conflict (they never change after first insert).
+INSERT_COLS = ["id", "schema_version", "lane", "source", "source_detail", "first_seen"]
+
+# Dashboard-owned workflow fields. The RPC wouldn't apply them anyway, but
+# keeping them out of the payload makes the ownership split auditable here.
+DASHBOARD_OWNED = ("status", "stage", "notes", "contact", "warm",
+                   "outreached_at", "updated_at")
 
 # Statuses that never belong on the board: rejected (junk) and deferred (backlog,
 # waiting for a quieter day). They stay in the local store but aren't published.
@@ -44,21 +59,15 @@ def _req(method, path, body=None):
         return json.loads(raw) if raw else []
 
 
-def existing_ids() -> set:
-    out, page = set(), 0
-    while True:
-        rows = _req("GET", f"/rest/v1/{TABLE}?select=id&limit=1000&offset={page*1000}")
-        if not rows:
-            break
-        out.update(r["id"] for r in rows)
-        if len(rows) < 1000:
-            break
-        page += 1
-    return out
-
-
 def to_row(rec: dict) -> dict:
-    return {c: rec.get(c) for c in COLS if c in rec}
+    """Build the RPC payload for one record: discovery fields + insert-only
+    provenance, and nothing else. Pure (no I/O) so the split is unit-testable."""
+    return {c: rec.get(c) for c in INSERT_COLS + DISCOVERY_COLS if c in rec}
+
+
+def eligible_rows(recs: list) -> list:
+    """Payloads for every record worth publishing (not locally rejected/deferred)."""
+    return [to_row(r) for r in recs if r.get("status") not in SKIP_STATUS]
 
 
 def main() -> int:
@@ -66,15 +75,15 @@ def main() -> int:
         print("Set SUPABASE_URL and SUPABASE_SERVICE_KEY in .env first.", file=sys.stderr)
         return 2
     recs = store.load()
-    have = existing_ids()
-    new = [to_row(r) for r in recs
-           if r.get("id") not in have and r.get("status") not in SKIP_STATUS]
-    print(f"store={len(recs)} already_in_supabase={len(have)} to_insert={len(new)}")
-    for i in range(0, len(new), 100):
-        chunk = new[i:i + 100]
-        _req("POST", f"/rest/v1/{TABLE}", chunk)
-        print(f"  inserted {i + len(chunk)}/{len(new)}")
-    print("done.")
+    rows = eligible_rows(recs)
+    print(f"store={len(recs)} to_upsert={len(rows)}")
+    touched = 0
+    for i in range(0, len(rows), 100):
+        chunk = rows[i:i + 100]
+        n = _req("POST", f"/rest/v1/rpc/{RPC}", {"rows": chunk})
+        touched += n if isinstance(n, int) else 0
+        print(f"  upserted {i + len(chunk)}/{len(rows)}")
+    print(f"done. rows_touched={touched}")
     return 0
 
 

@@ -1,11 +1,10 @@
 name: email-scan (Module A)
 
-# Module A — email-scanner. BLOCKED until Gmail OAuth for the gmail.com account
-# (garreth.dottin@gmail.com / garrethdottin@gmail.com — NOT cryptomiami.net) is
-# provisioned and stored as Actions secrets. See docs/SETUP.md.
-#
-# The daily cron is intentionally commented out so this does not run (and fail)
-# before credentials exist. Uncomment the schedule once GMAIL_* secrets are set.
+# Module A — email-scanner. LIVE: runs daily on the cron below (offset from
+# web-check). Gmail OAuth for the gmail.com account (garreth.dottin@gmail.com /
+# garrethdottin@gmail.com — NOT cryptomiami.net) is provisioned as Actions
+# secrets; the preflight step below fails fast if the GMAIL_* secrets go
+# missing. See docs/SETUP.md.
 
 on:
   schedule:
@@ -17,7 +16,9 @@ permissions:
   issues: write
 
 concurrency:
-  group: email-scan
+  # Shared group with web-check: both commit the store back to the repo, so
+  # GitHub must serialize them or their pushes race and clobber each other.
+  group: store-writers
   cancel-in-progress: false
 
 jobs:

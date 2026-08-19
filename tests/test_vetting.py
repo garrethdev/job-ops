@@ -69,6 +69,19 @@ def test_hiring_fragment_is_junk():
     assert vetting.is_junk(_rec("Remote (US, Canada) We're building a platform", "Nova Credit"))
 
 
+def test_domain_in_title_with_real_role_survives():
+    # A domain-styled company name must not nuke a title that clearly has a role.
+    for t in ("Scale.ai Forward Deployed Engineer", "Perplexity.ai Solutions Engineer",
+              "Founding Engineer @ Cursor.com"):
+        assert not vetting.is_junk(_rec(t, "Acme")), t
+
+
+def test_bare_url_title_is_still_junk():
+    # No role word alongside the domain -> still a URL artifact.
+    for t in ("jobs.lever.co/acme", "https://seeq.com", "intelligence.com )"):
+        assert vetting.is_junk(_rec(t, "Acme")), t
+
+
 def test_short_real_titles_survive():
     # Legitimate short titles carry a role word and must NOT be flagged.
     for t in ("GTM Engineer", "Video Editor", "Data Architect", "Fractional CTO",
@@ -145,6 +158,19 @@ def test_geography_allows_us_and_canada():
                       ("Lebanon, NH", ""),          # US town, not the country
                       ("Remote - US & Canada", "")]:
         assert not vetting.is_junk(_geo(loc, comp)), (loc, comp)
+
+
+def test_geography_rejects_latin_south_central_america():
+    # bare 'america(s)' in the allow-list used to let these through
+    assert vetting.is_junk(_geo("Remote - Latin America"))
+    assert vetting.is_junk(_geo("Sao Paulo, South America"))
+    assert vetting.is_junk(_geo("Remote (South America)"))
+    assert vetting.is_junk(_geo("Remote (Central America)"))
+
+
+def test_geography_still_allows_north_america_and_united_states():
+    for loc in ("Remote - North America", "United States", "Remote, North America"):
+        assert not vetting.is_junk(_geo(loc)), loc
 
 
 if __name__ == "__main__":

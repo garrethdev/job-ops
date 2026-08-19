@@ -19,6 +19,7 @@ from __future__ import annotations
 
 import json
 import re
+import sys
 import urllib.request
 from typing import Any, Dict, List
 
@@ -213,11 +214,17 @@ def score_llm(record: Dict[str, Any]) -> Dict[str, Any]:
         snippet=(record.get("snippet", "") or "")[:2000],
     )
     # A network error or a non-JSON/empty LLM reply must NEVER crash the run —
-    # one bad response would take down the whole batch. Fall back to the heuristic.
+    # one bad response would take down the whole batch. Fall back to the heuristic,
+    # tagged with the exception class so a transient outage stays distinguishable
+    # from "no key configured" in the stored rationale.
     try:
         text, provider, model = _call_llm(prompt)
-    except Exception:
-        text, model = None, "llm-error"
+    except Exception as e:
+        result = score_heuristic(record)
+        result["fit_rationale"] = (
+            f"[LLM error: {type(e).__name__} -> heuristic] " + result["fit_rationale"]
+        )
+        return result
     if not text:  # no key / empty reply -> deterministic fallback, flagged
         result = score_heuristic(record)
         result["fit_rationale"] = "[no LLM -> heuristic] " + result["fit_rationale"]
@@ -262,7 +269,10 @@ def apply_scores(
     """Score any record still unscored (fit_score 0 / lane empty). In place.
 
     Junk artifacts (see core.vetting) are stamped fit_score=1 without an LLM call,
-    so they can never surface regardless of how the model might rate them."""
+    so they can never surface regardless of how the model might rate them.
+    If any records fell back to the heuristic because the LLM call errored, one
+    WARNING line goes to stderr so cron logs surface the outage."""
+    llm_errors = 0
     for r in records:
         if r.get("status") == "rejected":
             continue  # already gated (junk / company gate) -> don't score or overwrite
@@ -273,5 +283,14 @@ def apply_scores(
                 r["fit_rationale"] = "auto-rejected (vetting): " + reason
                 r["red_flags"] = list(r.get("red_flags") or []) + ["scraping artifact: " + reason]
             else:
-                r.update(score_one(r, use_llm=use_llm))
+                result = score_one(r, use_llm=use_llm)
+                if result.get("fit_rationale", "").startswith("[LLM error"):
+                    llm_errors += 1
+                r.update(result)
+    if llm_errors:
+        print(
+            f"WARNING: {llm_errors} record(s) fell back to heuristic scoring after "
+            "LLM errors (see '[LLM error: ...]' rationales)",
+            file=sys.stderr,
+        )
     return records
