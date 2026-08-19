@@ -63,6 +63,7 @@ function render() {
   const rows = $("#rows");
   rows.innerHTML = "";
   const list = LEADS.filter((x) =>
+    (currentTab === "recruiters" ? x.lane === "recruiter" : x.lane !== "recruiter") &&
     (currentTab !== "warm" || x.warm === true) &&
     (currentTab !== "yc" || x.lane === "yc_gtm") &&
     (!lane || x.lane === lane) && x.fit_score >= min &&
@@ -74,7 +75,7 @@ function render() {
   const setCaret = (id, s) => { const c = $(id); if (c) c.textContent = s; };
   setCaret("#added-caret", sortMode === "newest" ? "↓" : sortMode === "oldest" ? "↑" : "");
   setCaret("#fit-caret", sortMode === "fit" ? "↓" : sortMode === "fit_asc" ? "↑" : "");
-  $("#count").textContent = list.length + (currentTab === "warm" ? " warm" : currentTab === "yc" ? " YC GTM" : " / " + LEADS.length) + " leads";
+  $("#count").textContent = list.length + (currentTab === "warm" ? " warm leads" : currentTab === "yc" ? " YC GTM leads" : currentTab === "recruiters" ? " recruiters" : " / " + LEADS.length + " leads");
   $("#empty").hidden = list.length > 0;
   for (const x of list) rows.appendChild(rowEl(x));
 }
@@ -202,14 +203,15 @@ function editNotes(x, disp) {
 /* --- tabs ----------------------------------------------------------------- */
 function showTab(name) {
   currentTab = name;
-  const onLeads = name === "leads" || name === "warm" || name === "yc";  // these reuse the leads table
+  const onLeads = name === "leads" || name === "warm" || name === "yc" || name === "recruiters";  // these reuse the leads table
   $("#view-leads").hidden = !onLeads;
   $("#view-outreach").hidden = onLeads;
   $("#tab-leads").classList.toggle("tab--active", name === "leads");
   $("#tab-yc").classList.toggle("tab--active", name === "yc");
   $("#tab-warm").classList.toggle("tab--active", name === "warm");
   $("#tab-outreach").classList.toggle("tab--active", name === "outreach");
-  if (name === "yc") $("#f-lane").value = "";  // avoid the lane dropdown fighting the YC filter
+  $("#tab-recruiters").classList.toggle("tab--active", name === "recruiters");
+  if (name === "yc" || name === "recruiters") $("#f-lane").value = "";  // avoid the lane dropdown fighting the tab filter
   if (onLeads) render(); else fillLeadPicker();
 }
 

@@ -22,6 +22,7 @@ export const LANE_LABELS = {
   "marketing-lead": "Marketing Lead",
   "lookup": "Contact lookup",
   "yc_gtm": "YC GTM",
+  "recruiter": "Recruiter",
 };
 
 // Drop a leading "[model-tag]" the scorer prepends to rationales, for display.
