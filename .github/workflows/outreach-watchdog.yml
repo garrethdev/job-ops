@@ -1,0 +1,73 @@
+name: outreach watchdog
+
+# Cloud dead-man switch for recruiter outreach. Runs on GitHub, NOT on the
+# laptop, so it still fires when the Claude app is closed - which is precisely
+# the failure it catches: with the app shut, the local hourly batch runner can
+# neither send nor warn (2026-08-21: a whole batch day passed silently).
+#
+# Read-only. Gmail scope here is gmail.readonly; this never sends recruiter mail
+# (browser-only rule - Gmail-API sends stamp automation headers). It alerts by
+# opening an issue and failing the job, both of which email the repo owner.
+
+on:
+  schedule:
+    - cron: "30 21 * * 1-5"   # 5:30pm ET weekdays, after the business-hours window closes
+  workflow_dispatch: {}
+
+permissions:
+  contents: read
+  issues: write
+
+jobs:
+  watchdog:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.11"
+
+      - name: Check whether outreach has stalled
+        id: check
+        continue-on-error: true
+        env:
+          GMAIL_CLIENT_ID: ${{ secrets.GMAIL_CLIENT_ID }}
+          GMAIL_CLIENT_SECRET: ${{ secrets.GMAIL_CLIENT_SECRET }}
+          GMAIL_REFRESH_TOKEN: ${{ secrets.GMAIL_REFRESH_TOKEN }}
+          SUPABASE_URL: ${{ secrets.SUPABASE_URL }}
+          SUPABASE_SERVICE_KEY: ${{ secrets.SUPABASE_SERVICE_KEY }}
+        run: |
+          set +e
+          python scripts/outreach_watchdog.py --stale-days 3 > watchdog.log 2>&1
+          rc=$?
+          cat watchdog.log
+          echo "status=$rc" >> "$GITHUB_OUTPUT"
+          exit 0
+
+      - name: Open an issue if stalled
+        if: steps.check.outputs.status != '0'
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          TITLE="Recruiter outreach has stalled - open the Claude app"
+          EXISTING=$(gh issue list --state open --search "$TITLE in:title" --json number --jq '.[0].number' || true)
+          if [ -n "$EXISTING" ]; then
+            echo "Issue #$EXISTING already open, not duplicating."
+            exit 0
+          fi
+          {
+            echo "Outreach is stalled. Detected by the cloud watchdog, which runs on GitHub and does not depend on the laptop being on."
+            echo ""
+            echo '```'
+            cat watchdog.log
+            echo '```'
+            echo ""
+            echo "**To clear it:** open the Claude app on a weekday with Chrome logged into Gmail /u/3/ and LinkedIn. The queued batch fires on its own within the hour, then close this issue."
+          } > issue_body.md
+          gh issue create --title "$TITLE" --body-file issue_body.md
+
+      - name: Fail the run so GitHub notifies
+        if: steps.check.outputs.status != '0'
+        run: |
+          echo "Outreach stalled - see the issue just opened."
+          exit 1
