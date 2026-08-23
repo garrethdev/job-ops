@@ -16,3 +16,9 @@ store/last_digest.md
 # vercel / node
 .vercel/
 node_modules/
+
+# local LinkedIn runner session (never commit)
+.li-profile/
+scripts/.env
+scripts/.li-profile/
+scripts/node_modules/

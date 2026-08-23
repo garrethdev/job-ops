@@ -65,3 +65,41 @@ Write ONE short outreach email (60-110 words) in Garreth's voice:
 
 Respond with ONLY a JSON object: {"subject": "...", "body": "..."}`;
 }
+
+// LinkedIn outreach — same voice, but two short assets reacting to a specific
+// post: a public COMMENT (get on their radar) and a follow-up DM. The "comment
+// first, then DM" sequence is the Aakash Gupta playbook. Both must feel human
+// and specific, never like a pitch.
+export function buildLinkedInPrompt(lead, post) {
+  const c = lead.contact || {};
+  const firstName = (c.name || "").trim().split(/\s+/)[0] || "there";
+  const postText = String((post && post.post_text) || "").slice(0, 1200);
+  return `You write LinkedIn outreach AS Garreth, matching his voice exactly.
+
+VOICE PROFILE:
+${VOICE_PROFILE}
+
+VERIFIED BACKGROUND FACTS (use only these — never invent experience, clients, or numbers):
+${BACKGROUND_FACTS}
+
+WHO:
+${c.name || "(unknown)"}${c.title ? " — " + c.title : ""} at ${lead.company || ""}
+Open role you're interested in: ${lead.title || ""}
+
+THEIR MOST RECENT POST (react to THIS — be specific to what they actually said):
+${postText || "(no recent post available — write a comment that references the company's work instead)"}
+
+Write TWO things:
+
+1) COMMENT — a public comment on that post. 1-2 sentences. Adds a genuine,
+   specific thought or a small insight that shows you read it. NO pitch, NO ask,
+   NO links, NO "great post". Sounds like a sharp peer, not a job-seeker.
+
+2) DM — a short direct message (3-4 sentences) sent a day or two later.
+   Open by referencing the post or their work specifically. One compact
+   credibility line grounded ONLY in the verified facts, angled to the ${lead.title || "role"}.
+   End with a soft, permission-based ask ("open to a quick chat?"). Greet "Hi ${firstName},".
+   No hard sell, no bullet points, no links.
+
+Respond with ONLY a JSON object: {"comment": "...", "dm": "..."}`;
+}

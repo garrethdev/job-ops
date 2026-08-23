@@ -114,11 +114,13 @@ function rowEl(x) {
       <button class="btn btn--primary act-li">${c.linkedin ? "✓ LinkedIn" : "🔗 Find LinkedIn"}</button>
       <button class="btn act-em">✉ Email</button>
       <button class="btn act-draft" title="draft outreach email in your voice">✍️ Draft</button>
+      ${c.linkedin ? `<button class="btn act-li2" title="draft a LinkedIn comment + DM">💬 LinkedIn${c.li && c.li.li_stage ? ` · ${esc(c.li.li_stage)}` : ""}</button>` : ""}
       <button class="btn btn--danger act-rej" title="reject (hides it, remembers your no)">🗑</button>
     </div></td>`;
   tr.querySelector(".act-li").onclick = () => enrich(x.id, tr);
   tr.querySelector(".act-em").onclick = () => findEmail(x.id, tr);
   tr.querySelector(".act-draft").onclick = () => draftFromRow(x.id);
+  { const b = tr.querySelector(".act-li2"); if (b) b.onclick = () => openLiModal(x.id); }
   tr.querySelector(".act-stage").onchange = (e) => setStage(x.id, e.target.value, tr);
   tr.querySelector(".act-warm").onclick = () => toggleWarm(x.id, tr);
   tr.querySelector(".act-rej").onclick = () => reject(x.id, tr);
@@ -205,14 +207,18 @@ function showTab(name) {
   currentTab = name;
   const onLeads = name === "leads" || name === "warm" || name === "yc" || name === "recruiters";  // these reuse the leads table
   $("#view-leads").hidden = !onLeads;
-  $("#view-outreach").hidden = onLeads;
+  $("#view-outreach").hidden = name !== "outreach";
+  $("#view-linkedin").hidden = name !== "linkedin";
   $("#tab-leads").classList.toggle("tab--active", name === "leads");
   $("#tab-yc").classList.toggle("tab--active", name === "yc");
   $("#tab-warm").classList.toggle("tab--active", name === "warm");
   $("#tab-outreach").classList.toggle("tab--active", name === "outreach");
   $("#tab-recruiters").classList.toggle("tab--active", name === "recruiters");
+  $("#tab-linkedin").classList.toggle("tab--active", name === "linkedin");
   if (name === "yc" || name === "recruiters") $("#f-lane").value = "";  // avoid the lane dropdown fighting the tab filter
-  if (onLeads) render(); else fillLeadPicker();
+  if (onLeads) render();
+  else if (name === "linkedin") renderLinkedInQueue();
+  else fillLeadPicker();
 }
 
 async function toggleWarm(id, tr) {
@@ -418,6 +424,98 @@ async function findContactSearch() {
   }
 }
 
+/* --- LinkedIn: draft comment + DM, approve into the local runner's queue -- */
+let LI_ID = null;  // lead the modal is currently editing
+
+function openLiModal(id) {
+  const x = LEADS.find((l) => l.id === id);
+  if (!x) return;
+  LI_ID = id;
+  const c = x.contact || {}, li = c.li || {};
+  $("#li-who").innerHTML = `${esc(c.name || "")}${c.title ? " · " + esc(c.title) : ""} — ${esc(x.company)}`;
+  $("#li-post").innerHTML = '<span class="muted">Loading their latest post…</span>';
+  $("#li-postlink").hidden = true;
+  $("#li-comment").value = li.comment || "";
+  $("#li-dm").value = li.dm || "";
+  $("#li-status").textContent = "";
+  $("#limodal").hidden = false;
+  // If nothing drafted yet, auto-draft; otherwise show what's saved.
+  if (!li.comment && !li.dm) liDraft();
+  else if (li.post_url) { $("#li-post").innerHTML = '<span class="muted">Saved draft — re-draft to refresh from their latest post.</span>'; showPostLink(li.post_url); }
+}
+function closeLiModal() { $("#limodal").hidden = true; LI_ID = null; }
+function showPostLink(url) {
+  const a = $("#li-postlink");
+  if (url) { a.href = url; a.hidden = false; } else a.hidden = true;
+}
+
+async function liDraft() {
+  if (!LI_ID) return;
+  const btn = $("#li-redraft"), old = btn.textContent;
+  btn.disabled = true; btn.textContent = "⏳ drafting…";
+  $("#li-status").textContent = "Reading their latest post and drafting…";
+  try {
+    const d = await (await api(`/api/linkedin?id=${encodeURIComponent(LI_ID)}`, { method: "POST", body: "{}" })).json();
+    if (LI_ID == null) return;                 // modal closed mid-flight
+    if (d.error) { $("#li-status").textContent = "Failed: " + d.error; return; }
+    $("#li-post").innerHTML = d.post_text ? esc(d.post_text) : '<span class="muted">No recent post found — comment references the company instead.</span>';
+    showPostLink(d.post_url);
+    $("#li-comment").value = d.comment || "";
+    $("#li-dm").value = d.dm || "";
+    $("#li-post").dataset.postUrl = d.post_url || "";
+    $("#li-status").textContent = "Draft ready — edit, then Approve & queue.";
+  } catch (e) {
+    $("#li-status").textContent = "Request failed.";
+  } finally { btn.disabled = false; btn.textContent = old; }
+}
+
+async function liApprove() {
+  if (!LI_ID) return;
+  const comment = $("#li-comment").value.trim(), dm = $("#li-dm").value.trim();
+  if (!comment && !dm) { $("#li-status").textContent = "Write a comment or DM first."; return; }
+  const btn = $("#li-approve"), old = btn.textContent;
+  btn.disabled = true; btn.textContent = "⏳ queuing…";
+  try {
+    const post_url = ($("#li-post").dataset.postUrl) || "";
+    const d = await (await api(`/api/linkedin?id=${encodeURIComponent(LI_ID)}`, {
+      method: "POST", body: JSON.stringify({ approve: true, comment, dm, post_url }),
+    })).json();
+    if (d.error) { $("#li-status").textContent = "Failed: " + d.error; return; }
+    const lead = LEADS.find((l) => l.id === LI_ID);
+    if (lead && d.lead) { Object.assign(lead, d.lead); render(); }
+    toast("Queued for LinkedIn outreach (li_stage=approved).");
+    closeLiModal();
+  } catch (e) {
+    $("#li-status").textContent = "Request failed.";
+  } finally { btn.disabled = false; btn.textContent = old; }
+}
+
+const LI_STAGE_LABEL = { pending: "Pending", approved: "Approved · ready", commented: "Commented", dm_sent: "DM sent" };
+function renderLinkedInQueue() {
+  const box = $("#li-rows");
+  box.innerHTML = "";
+  const list = LEADS.filter((x) => x.contact && x.contact.linkedin)
+    .sort((a, b) => (b.fit_score || 0) - (a.fit_score || 0));
+  $("#li-empty").hidden = list.length > 0;
+  for (const x of list) {
+    const c = x.contact || {}, li = c.li || {};
+    const stage = li.li_stage || "pending";
+    const el = document.createElement("div");
+    el.className = "li-card";
+    el.innerHTML = `
+      <div class="li-card__head">
+        <div><b>${esc(c.name || "")}</b> · ${esc(c.title || "")} — ${esc(x.company)}</div>
+        <span class="lane lane--yc_gtm" style="font-weight:600">${esc(LI_STAGE_LABEL[stage] || stage)}</span>
+      </div>
+      ${li.comment ? `<div class="li-card__row"><span class="muted">Comment:</span> ${esc(li.comment)}</div>` : ""}
+      ${li.dm ? `<div class="li-card__row"><span class="muted">DM:</span> ${esc(li.dm)}</div>` : ""}
+      ${li.post_url ? `<a class="d-link" href="${esc(safeUrl(li.post_url) || "#")}" target="_blank" rel="noopener noreferrer">Post ↗</a>` : ""}
+      <div class="li-card__acts"><button class="btn btn--primary li-edit">${li.comment || li.dm ? "Edit / re-draft" : "Draft comment + DM"}</button></div>`;
+    el.querySelector(".li-edit").onclick = () => openLiModal(x.id);
+    box.appendChild(el);
+  }
+}
+
 /* --- boot ---------------------------------------------------------------- */
 ["#f-lane", "#f-stage", "#f-sort", "#f-min", "#f-enriched", "#f-q"].forEach((s) => $(s).addEventListener("input", render));
 $("#th-added") && $("#th-added").addEventListener("click", () => {  // click the column to re-sort by date
@@ -437,10 +535,12 @@ $("#d-close").addEventListener("click", closeDetail);
 $("#d-backdrop").addEventListener("click", closeDetail);
 $("#al-close").addEventListener("click", closeAddLead);
 $("#al-backdrop").addEventListener("click", closeAddLead);
-document.addEventListener("keydown", (e) => { if (e.key === "Escape") { closeDetail(); closeAddLead(); } });
+$("#li-close") && $("#li-close").addEventListener("click", closeLiModal);
+$("#li-backdrop") && $("#li-backdrop").addEventListener("click", closeLiModal);
+document.addEventListener("keydown", (e) => { if (e.key === "Escape") { closeDetail(); closeAddLead(); closeLiModal(); } });
 
 // This file is a module, so top-level functions aren't global. Expose the ones
 // referenced by inline onclick= handlers in index.html.
-Object.assign(window, { submitPw, logout, load, showTab, craftEmail, saveDraft, findContactSearch, openAddLead, submitAddLead });
+Object.assign(window, { submitPw, logout, load, showTab, craftEmail, saveDraft, findContactSearch, openAddLead, submitAddLead, liDraft, liApprove });
 
 load();
