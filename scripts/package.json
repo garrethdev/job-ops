@@ -1,0 +1,15 @@
+{
+  "name": "job-ops-scripts",
+  "private": true,
+  "type": "module",
+  "description": "Local-only operator scripts (run on your machine, not in CI/Vercel).",
+  "scripts": {
+    "preflight": "node linkedin_preflight.mjs",
+    "outreach": "node linkedin_outreach.mjs",
+    "outreach:dry": "node linkedin_outreach.mjs --dry",
+    "outreach:dm": "node linkedin_outreach.mjs --dm"
+  },
+  "dependencies": {
+    "playwright": "^1.47.0"
+  }
+}

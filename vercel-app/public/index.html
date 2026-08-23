@@ -33,8 +33,21 @@
   <button id="tab-yc" class="tab" onclick="showTab('yc')">🚀 YC GTM</button>
   <button id="tab-recruiters" class="tab" onclick="showTab('recruiters')">🧑‍💼 Recruiters</button>
   <button id="tab-warm" class="tab" onclick="showTab('warm')">★ Warm</button>
+  <button id="tab-linkedin" class="tab" onclick="showTab('linkedin')">💬 LinkedIn</button>
   <button id="tab-outreach" class="tab" onclick="showTab('outreach')">Outreach</button>
 </nav>
+
+<!-- LinkedIn queue tab -->
+<section id="view-linkedin" hidden>
+  <div class="li-queue">
+    <p class="outreach__hint">Draft a <b>comment + DM</b> for any lead (from their latest post),
+      edit, then <b>Approve &amp; queue</b>. Approved rows are what the local browser
+      script (<code>scripts/linkedin_outreach.mjs</code>) posts on your Mac — nothing
+      goes out from here.</p>
+    <div id="li-rows" class="li-cards"></div>
+    <div id="li-empty" class="empty" hidden>No LinkedIn-enriched leads yet. Use “Find LinkedIn” on a lead first.</div>
+  </div>
+</section>
 
 <!-- Outreach tab -->
 <section id="view-outreach" hidden>
@@ -217,6 +230,31 @@
   <div class="modal__card" role="dialog" aria-modal="true">
     <button id="d-close" class="modal__close" aria-label="Close">✕</button>
     <div id="d-body"></div>
+  </div>
+</div>
+
+<!-- LinkedIn draft modal -->
+<div id="limodal" class="modal" hidden>
+  <div id="li-backdrop" class="modal__backdrop"></div>
+  <div class="modal__card" role="dialog" aria-modal="true">
+    <button id="li-close" class="modal__close" aria-label="Close">✕</button>
+    <h2 class="modal__title">LinkedIn outreach</h2>
+    <div id="li-who" class="d-company" style="margin-bottom:10px"></div>
+    <div class="d-section"><h4>Their latest post</h4>
+      <div id="li-post" class="d-desc"><span class="muted">Loading…</span></div>
+      <a id="li-postlink" class="d-link" href="#" target="_blank" rel="noopener noreferrer" hidden>Open post ↗</a>
+    </div>
+    <label class="outreach__field">Comment (public — posted on their post)
+      <textarea id="li-comment" class="outreach__bodyedit" spellcheck="true"></textarea>
+    </label>
+    <label class="outreach__field">DM (sent a day or two later)
+      <textarea id="li-dm" class="outreach__bodyedit" spellcheck="true"></textarea>
+    </label>
+    <div class="form-actions">
+      <button id="li-redraft" class="btn btn--ghost" onclick="liDraft()">↻ Re-draft</button>
+      <button id="li-approve" class="btn btn--primary" onclick="liApprove()">✅ Approve &amp; queue</button>
+      <span id="li-status" class="outreach__status"></span>
+    </div>
   </div>
 </div>
 

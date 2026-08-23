@@ -366,3 +366,11 @@ a:hover { color: var(--accent-strong); text-decoration: underline; }
 }
 .form-textarea:focus { outline: none; border-color: var(--accent); box-shadow: var(--ring); }
 .form-actions { display: flex; align-items: center; gap: 12px; margin-top: 20px; }
+
+/* LinkedIn queue */
+.li-queue { padding: 16px 20px; }
+.li-cards { display: flex; flex-direction: column; gap: 12px; margin-top: 12px; }
+.li-card { border: 1px solid var(--border, #e5e7eb); border-radius: 10px; padding: 12px 14px; background: var(--card, #fff); }
+.li-card__head { display: flex; justify-content: space-between; align-items: center; gap: 10px; margin-bottom: 6px; }
+.li-card__row { font-size: 13px; margin: 4px 0; line-height: 1.4; }
+.li-card__acts { margin-top: 8px; }
