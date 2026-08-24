@@ -1,0 +1,65 @@
+name: outreach morning nudge
+
+# Garreth fires the outreach batch by hand each weekday (browser sending only works
+# from inside the Claude desktop app, and that app's scheduler stopped executing on
+# 2026-08-19). This runs on GitHub, so it works even when nothing local does: at 11am
+# ET on weekdays it checks whether today's batch has gone out, and if not it opens an
+# issue - which GitHub emails to him - telling him to start the session.
+#
+# Read-only against Gmail and Supabase. It never sends recruiter mail.
+
+on:
+  schedule:
+    - cron: "0 15 * * 1-5"   # 11:00 ET weekdays
+  workflow_dispatch: {}
+
+permissions:
+  contents: read
+  issues: write
+
+jobs:
+  nudge:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.11"
+
+      - name: Has today's batch gone out?
+        id: check
+        continue-on-error: true
+        env:
+          GMAIL_CLIENT_ID: ${{ secrets.GMAIL_CLIENT_ID }}
+          GMAIL_CLIENT_SECRET: ${{ secrets.GMAIL_CLIENT_SECRET }}
+          GMAIL_REFRESH_TOKEN: ${{ secrets.GMAIL_REFRESH_TOKEN }}
+          SUPABASE_URL: ${{ secrets.SUPABASE_URL }}
+          SUPABASE_SERVICE_KEY: ${{ secrets.SUPABASE_SERVICE_KEY }}
+        run: |
+          set +e
+          python scripts/outreach_watchdog.py --stale-days 1 > nudge.log 2>&1
+          rc=$?
+          cat nudge.log
+          echo "status=$rc" >> "$GITHUB_OUTPUT"
+          exit 0
+
+      - name: Nudge by email (via issue) if nothing sent today
+        if: steps.check.outputs.status != '0'
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          TODAY=$(date -u +%Y-%m-%d)
+          TITLE="Start your outreach session - $TODAY"
+          {
+            echo "No outreach has gone out today yet."
+            echo ""
+            echo "**Open the Claude app and send one word: \`/outreach\`**"
+            echo ""
+            echo "That fires the next queued batch (emails + LinkedIn), logs every step to"
+            echo "~/Claude/recruiter-direct/outreach.log, and reports back when done."
+            echo ""
+            echo '```'
+            cat nudge.log
+            echo '```'
+          } > body.md
+          gh issue create --title "$TITLE" --body-file body.md
